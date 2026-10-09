@@ -56,6 +56,16 @@ async function guildRoles(guild: string) {
   rolesCache = { guild, at: Date.now(), roles };
   return roles;
 }
+// The IDs of every role a member holds in the Discord server (empty if they are not in it or no bot is available).
+const memberIdsCache = new Map<string, { at: number; ids: string[] }>();
+export async function memberRoleIds(userId: string): Promise<string[]> {
+  const hit = memberIdsCache.get(userId); if (hit && Date.now() - hit.at < 60000) return hit.ids;
+  try {
+    const guild = await roleGuild(); if (!guild) return [];
+    const member = await discordFetch(`guilds/${guild}/members/${userId}`) as { roles: string[] };
+    memberIdsCache.set(userId, { at: Date.now(), ids: member.roles }); return member.roles;
+  } catch { return []; }
+}
 export async function highestRole(userId: string): Promise<DiscordRole | null> {
   const hit = memberRoleCache.get(userId); if (hit && Date.now() - hit.at < ROLE_TTL) return hit.role;
   let role: DiscordRole | null = null;
@@ -79,8 +89,8 @@ export async function enrichIdentity(me: DiscordUser) {
   return { ...me, avatar_url: avatarUrl(me), highest_role: role?.name ?? null, role };
 }export async function supervisor() {
   const { readSession } = await import('./discord.server'); const me = await readSession(); if (!me) return null;
-  // Local test mode has no supervision list to check, so any linked Discord account may review.
-  const { localMode } = await import('./local-store.server'); if (localMode()) return me;
+  // Without the database's supervision list, reviewers are staff and anyone with a supervision role.
+  const { localMode } = await import('./local-store.server'); if (localMode()) return (await (await import('./staff.server')).accessFor(me)).supervisor ? me : null;
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server'); const { data, error } = await supabaseAdmin.from('supervision_members').select('id').eq('discord_id', me.id).maybeSingle();
   if (error) throw new Error(error.message); return data ? me : null;
 }
@@ -133,7 +143,7 @@ function alertEmbeds(r: AlertReport, origin: string) {
     ].join('\n\n'), footer: { text: `Report ${r.id}` } },
   ];
 }
-export async function notifyReport(id: string, origin = 'https://apexk2.lovable.app') {
+export async function notifyReport(id: string, origin: string) {
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
   const { data: config } = await supabaseAdmin.from('discord_settings').select('*').eq('id', 'main').maybeSingle();
   if (!config?.channel_id) { await supabaseAdmin.from('reports').update({ notification_status: 'not_configured' }).eq('id', id); return; }

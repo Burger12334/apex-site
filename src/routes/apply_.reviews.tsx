@@ -54,7 +54,7 @@ function Reviews() {
   const current = (subs.data ?? []).find(s => s.id === sel);
   const count = (f: string) => (subs.data ?? []).filter(s => f === 'all' || s.status === f).length;
 
-  if (!isAdmin) return <ApplyShell active="reviews"><section className="site-width apply-page"><div className="eyebrow">RESTRICTED</div><h1 className="apply-title">Reviews are for the crew.</h1><p className="apply-lede">{user ? (role.isLoading ? 'Checking access…' : 'Your account does not have admin access.') : 'Sign in with the Admin button to review applications.'}</p></section></ApplyShell>;
+  if (!isAdmin) return <ApplyShell active="reviews"><section className="site-width apply-page"><div className="eyebrow">RESTRICTED</div><h1 className="apply-title">Reviews are for the crew.</h1><p className="apply-lede">{user ? (role.isLoading ? 'Checking access…' : 'Your account does not have admin access.') : 'Link the Discord account that has staff access to review applications.'}</p></section></ApplyShell>;
 
   return <ApplyShell active="reviews" notice={notice} onNotice={setNotice}>
     <section className="page-hero page-banner banner-slim"><HeroBackdrop /><div className="site-width page-hero-inner"><div className="eyebrow"><span className="line" />CONTROL ROOM</div><h1 className="apply-title">Review applications</h1><p className="apply-lede">Open a card to read the answers, then accept or deny. The applicant is told by Discord DM.</p></div></section>

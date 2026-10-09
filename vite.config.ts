@@ -12,4 +12,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Build a normal Node server. Set NITRO_PRESET (for example "vercel" or "netlify") to build for another kind of host.
+  nitro: { preset: process.env["NITRO_PRESET"] ?? "node-server" },
 });

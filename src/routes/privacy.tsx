@@ -54,8 +54,8 @@ const SECTIONS: LegalSection[] = [
     <p>The site uses other companies to work, and they process information on our behalf or receive it when you use the site:</p>
     <ul>
       <li><strong>Discord</strong> for sign-in, roles, staff alerts and direct messages.</li>
-      <li><strong>Supabase</strong> for the database and file storage.</li>
-      <li><strong>Lovable</strong> for hosting the website.</li>
+      <li><strong>Our hosting provider</strong> for running the website and storing its records.</li>
+      <li><strong>Supabase</strong> for staff sign-in.</li>
       <li><strong>Google Fonts</strong> for the site’s typefaces, which means your browser contacts Google when a page loads.</li>
     </ul>
     <p>Links to Instagram, Discord and Roblox take you to those services, which have their own privacy policies.</p>

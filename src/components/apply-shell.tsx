@@ -7,7 +7,7 @@ import { ApexEditor, Logo } from '@/components/apex-editor';
 import { DiscordAccount, DiscordSettings } from '@/components/community';
 import { getApex } from '@/lib/apex.functions';
 import { getForms, getDiscordMe } from '@/lib/apply.functions';
-import { getSupervisionAccess } from '@/lib/community.functions';
+import { getAccess, getSupervisionAccess } from '@/lib/community.functions';
 import { useApexAuth } from '@/lib/apex-context';
 import { useHideOnScroll, useScrollReveal } from '@/hooks/use-page-motion';
 import { SiteHelper } from '@/components/site-helper';
@@ -25,14 +25,14 @@ export function useApplyAccess() {
   const me = useQuery({ queryKey: ['discord-me'], queryFn: () => getDiscordMe() });
   const role = useQuery({ queryKey: ['role', user?.id], enabled: !!user, queryFn: async () => { const { data, error } = await supabase.rpc('apex_role'); if (error) throw error; return data; } });
   const supervision = useQuery({ queryKey: ['supervision-access', me.data?.id], enabled: !!me.data, queryFn: () => getSupervisionAccess() });
-  // Temporary local switch (set in .env): shows the editor-only controls to every visitor.
-  // It only affects what is shown; the database still decides who may read or save.
-  const everyoneAdmin = import.meta.env['VITE_APEX_EVERYONE_ADMIN'] === 'true';
-  const isAdmin = everyoneAdmin || role.data === 'owner' || role.data === 'editor';
-  const isSupervisor = supervision.data === true;
+  // When the site keeps its own data, staff and supervision are decided from the linked Discord account
+  // (owner IDs and Discord roles); with the database connected, from the signed-in editor account.
+  const access = useQuery({ queryKey: ['access', me.data?.id ?? 'guest'], queryFn: () => getAccess() });
+  const isAdmin = access.data?.staff === true || role.data === 'owner' || role.data === 'editor';
+  const isSupervisor = access.data?.supervisor === true || supervision.data === true;
   // After linking, Discord sends people back to the homepage.
   const linkDiscord = () => { window.location.href = '/api/public/discord/login'; };
-  const unlink = async () => { await fetch('/api/public/discord/logout', { method: 'POST' }); await Promise.all([qc.invalidateQueries({ queryKey: ['discord-me'] }), qc.invalidateQueries({ queryKey: ['supervision-access'] })]); };
+  const unlink = async () => { await fetch('/api/public/discord/logout', { method: 'POST' }); await Promise.all([qc.invalidateQueries({ queryKey: ['discord-me'] }), qc.invalidateQueries({ queryKey: ['supervision-access'] }), qc.invalidateQueries({ queryKey: ['access'] })]); };
   return { user, me, role, isAdmin, isSupervisor, linkDiscord, unlink };
 }
 

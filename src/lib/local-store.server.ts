@@ -1,13 +1,15 @@
-// Local test mode: when the dev server has no SUPABASE_SERVICE_ROLE_KEY, reports are kept in
-// .local-data/ on this computer instead of the database, so the report flow can be tried locally.
-// Never active in a production build, and nothing stored here reaches the live site.
+// The site's own storage. When there is no SUPABASE_SERVICE_ROLE_KEY the site keeps its records (reports,
+// applications, team, settings and so on) as JSON files in a data folder on the server instead of the database.
+// The folder is .local-data next to the app unless APEX_DATA_DIR points somewhere else; it must be a folder
+// that survives restarts and redeploys. Staff tools are limited to staff (see staff.server.ts).
 import type { ReportRow } from './community.functions';
 
 type StoredReport = Omit<ReportRow, 'proof_url'> & { proof_file: string; proof_type: string; reviewed_by: string };
 
-export const localMode = () => import.meta.env.DEV && !process.env['SUPABASE_SERVICE_ROLE_KEY'];
+export const localMode = () => !process.env['SUPABASE_SERVICE_ROLE_KEY'];
 
-const dir = () => `${process.cwd()}/.local-data`;
+export const dataDir = () => process.env['APEX_DATA_DIR'] || `${process.cwd()}/.local-data`;
+const dir = dataDir;
 const file = () => `${dir()}/reports.json`;
 
 async function load(): Promise<StoredReport[]> {
@@ -59,11 +61,11 @@ export async function setLocalNotification(id: string, notification_status: stri
 
 // Discord alert settings for local test mode. A channel webhook lets the local copy post and ping
 // roles without the Lovable bot connection.
-export type LocalDiscord = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean };
+export type LocalDiscord = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[] };
 const discordFile = () => `${dir()}/discord-settings.json`;
 export async function readLocalDiscord(): Promise<LocalDiscord> {
   const { readFile } = await import('node:fs/promises');
-  try { return { webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false, ...JSON.parse(await readFile(discordFile(), 'utf8')) as Partial<LocalDiscord> }; } catch { return { webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false }; }
+  try { return { webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false, staff_role_ids: [], supervision_role_ids: [], ...JSON.parse(await readFile(discordFile(), 'utf8')) as Partial<LocalDiscord> }; } catch { return { webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false, staff_role_ids: [], supervision_role_ids: [] }; }
 }
 export async function saveLocalDiscord(config: LocalDiscord) {
   const { mkdir, writeFile } = await import('node:fs/promises');

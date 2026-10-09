@@ -47,7 +47,8 @@ export const toggleExpeditionSignup = createServerFn({ method: 'POST' }).inputVa
 // Local test mode only: expeditions kept on this computer. Creating one announces it on Discord.
 export const saveLocalExpedition = createServerFn({ method: 'POST' }).inputValidator((d) => expeditionInput.parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const expedition: Expedition = { ...data, starts_at: new Date(data.starts_at).toISOString(), id: crypto.randomUUID(), created_at: new Date().toISOString() };
   await writeLocalList('expeditions', [...await readLocalList<Expedition>('expeditions'), expedition]);
   const { announceLocally } = await import('./expeditions.server'); const { currentOrigin } = await import('./discord.server');
@@ -59,7 +60,8 @@ export const saveLocalExpedition = createServerFn({ method: 'POST' }).inputValid
 });
 export const deleteLocalExpedition = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const all = await readLocalList<Expedition>('expeditions');
   await writeLocalList('expeditions', all.filter(e => e.id !== data));
   await writeLocalList('expedition-signups', (await readLocalList<{ expedition_id: string }>('expedition-signups')).filter(s => s.expedition_id !== data));
@@ -92,7 +94,8 @@ export const getHallOfFame = createServerFn({ method: 'GET' }).handler(async () 
 // Local test mode only: add a climber by Discord ID, or update their summit count if they are already listed.
 export const saveLocalClimber = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ discord_id: snowflake, summits: z.number().int().min(0).max(100000), note: z.string().trim().max(120) }).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { findDiscordUser } = await import('./community.server');
   const user = await findDiscordUser(data.discord_id);
   if (!user) throw new Error('No Discord user has that ID.');
@@ -105,7 +108,8 @@ export const saveLocalClimber = createServerFn({ method: 'POST' }).inputValidato
 });
 export const deleteLocalClimber = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const all = await readLocalList<Climber>('hall-of-fame');
   await writeLocalList('hall-of-fame', all.filter(c => c.id !== data));
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');

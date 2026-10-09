@@ -132,7 +132,7 @@ function SettingsCard({ icon, tone, title, text, ready, children }: { icon: Reac
   </section>;
 }
 
-type LocalDiscordConfig = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean };
+type LocalDiscordConfig = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[] };
 const WEBHOOK_HINT = 'https://discord.com/api/webhooks/…';
 const roleList = (value: FormDataEntryValue | null) => String(value ?? '').split(/[\s,]+/).filter(Boolean);
 
@@ -146,13 +146,13 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
   async function run(action: () => Promise<unknown>, ok: string) { setBusy(true); setMessage(''); try { await action(); setMessage(ok); } catch (e) { setMessage(e instanceof Error ? e.message : 'Something went wrong.'); } finally { setBusy(false); } }
   function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const f = new FormData(e.currentTarget);
-    const ids = roleList(f.get('roles'));
+    const ids = roleList(f.get('roles')); const staffRoles = roleList(f.get('staff_roles')); const supervisionRoles = roleList(f.get('supervision_roles'));
     const app_role_ids: Record<string, string[]> = {}; const app_webhooks: Record<string, string> = {}; const app_accept_roles: Record<string, string> = {};
     for (const form of forms.data ?? []) { app_role_ids[form.id] = roleList(f.get(`app_${form.id}`)); app_webhooks[form.id] = String(f.get(`appw_${form.id}`) ?? '').trim(); app_accept_roles[form.id] = String(f.get(`appr_${form.id}`) ?? '').trim(); }
     if (Object.values(app_accept_roles).some(id => id && !/^\d{17,20}$/.test(id))) { setMessage('Enter one valid role ID for each role to give on accept.'); return; }
-    if ([...ids, ...Object.values(app_role_ids).flat()].some(id => !/^\d{17,20}$/.test(id))) { setMessage('Enter valid role IDs separated by commas.'); return; }
+    if ([...ids, ...staffRoles, ...supervisionRoles, ...Object.values(app_role_ids).flat()].some(id => !/^\d{17,20}$/.test(id))) { setMessage('Enter valid role IDs separated by commas.'); return; }
     void run(async () => {
-      await saveConfig({ data: { webhook_url: String(f.get('webhook') ?? '').trim(), channel_id: config.channel_id, ping_role_ids: ids, app_role_ids: { ...config.app_role_ids, ...app_role_ids }, app_webhooks: { ...config.app_webhooks, ...app_webhooks }, app_accept_roles: { ...config.app_accept_roles, ...app_accept_roles }, reapply_cooldown_days: Math.max(0, Math.min(365, Math.round(Number(f.get('cooldown') || 0)))), events_webhook_url: String(f.get('events') ?? '').trim(), log_visitors: f.get('log_visitors') === 'on', log_webhook_url: String(f.get('log') ?? '').trim(), app_webhook_url: String(f.get('app_webhook') ?? '').trim(), guild_id: String(f.get('guild') ?? '').trim() } });
+      await saveConfig({ data: { webhook_url: String(f.get('webhook') ?? '').trim(), channel_id: config.channel_id, ping_role_ids: ids, app_role_ids: { ...config.app_role_ids, ...app_role_ids }, app_webhooks: { ...config.app_webhooks, ...app_webhooks }, app_accept_roles: { ...config.app_accept_roles, ...app_accept_roles }, reapply_cooldown_days: Math.max(0, Math.min(365, Math.round(Number(f.get('cooldown') || 0)))), events_webhook_url: String(f.get('events') ?? '').trim(), log_visitors: f.get('log_visitors') === 'on', staff_role_ids: staffRoles, supervision_role_ids: supervisionRoles, log_webhook_url: String(f.get('log') ?? '').trim(), app_webhook_url: String(f.get('app_webhook') ?? '').trim(), guild_id: String(f.get('guild') ?? '').trim() } });
       await qc.invalidateQueries({ queryKey: ['local-discord'] });
     }, 'Discord settings saved.');
   }
@@ -164,6 +164,10 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
         <div className="settings-scroll">
           <SettingsCard icon={<Server />} tone="tone-blue" title="Server" text="The server whose roles show next to people's names. The Apex bot must be in it." ready={!!config.guild_id}>
             <label>Discord server ID<input name="guild" pattern="[0-9]{17,20}" defaultValue={config.guild_id} placeholder="e.g. 123456789012345678" /></label>
+          </SettingsCard>
+          <SettingsCard icon={<Users />} tone="tone-violet" title="Staff access" text="Which Discord roles can use the staff tools on this site. Owners set on the server always have access." ready={config.staff_role_ids.length > 0}>
+            <label>Staff roles<input name="staff_roles" defaultValue={config.staff_role_ids.join(', ')} placeholder="Role IDs, separated by commas" /><small className="field-hint">Members with any of these roles can edit applications, the team, expeditions and these settings, and review applications and reports.</small></label>
+            <label>Supervision roles<input name="supervision_roles" defaultValue={config.supervision_role_ids.join(', ')} placeholder="Role IDs, separated by commas" /><small className="field-hint">Members with any of these roles can review reports, but not use the other staff tools.</small></label>
           </SettingsCard>
           <SettingsCard icon={<ShieldAlert />} tone="tone-report" title="Reports" text="Every new report is posted to this channel." ready={!!config.webhook_url}>
             <label>Webhook URL<input name="webhook" type="url" defaultValue={config.webhook_url} placeholder={WEBHOOK_HINT} /><small className="field-hint">In Discord: channel settings → Integrations → Webhooks → New Webhook → Copy Webhook URL.</small></label>
@@ -190,7 +194,7 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
             <label className="settings-check"><input type="checkbox" name="log_visitors" defaultChecked={config.log_visitors} />Also log visitor activity<small className="field-hint">Every page a visitor opens and every Instagram or Discord link they click. This can fill the channel quickly on a busy day.</small></label>
             <Button type="button" variant="outline" size="sm" disabled={busy || !config.log_webhook_url} onClick={() => void run(() => sendTestLog(), 'Test log entry sent. Check the log channel.')}>Send a test log entry</Button>
           </SettingsCard>
-          <p className="field-hint settings-note">This copy runs on your computer, so these settings and its reports are stored here, not on the live site. Test buttons use the saved settings, so save first.</p>
+          <p className="field-hint settings-note">Test buttons use the saved settings, so save first.</p>
         </div>
         <footer className="settings-foot">{message && <p role="status" className="settings-message">{message}</p>}<Button disabled={busy}><Save />{busy ? 'Saving…' : 'Save settings'}</Button></footer>
       </form>

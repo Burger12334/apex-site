@@ -82,7 +82,8 @@ export const submitApplication = createServerFn({ method: 'POST' })
 // Local test mode only: applications kept on this computer. getLocalForms returns null outside test mode.
 export const getLocalForms = createServerFn({ method: 'GET' }).handler(async () => {
   const { localMode, readLocalForms } = await import('./local-store.server');
-  return localMode() ? (await readLocalForms()).sort((a, b) => a.sort_order - b.sort_order) : null;
+  if (!localMode() || !await (await import('./staff.server')).isStaff()) return null;
+  return (await readLocalForms()).sort((a, b) => a.sort_order - b.sort_order);
 });
 const localForm = z.object({
   id: z.string().uuid(), title: z.string().trim().min(1).max(200), description: z.string().max(2000),
@@ -91,7 +92,8 @@ const localForm = z.object({
 });
 export const saveLocalForm = createServerFn({ method: 'POST' }).inputValidator((d) => localForm.parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalForms, writeLocalForms } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const forms = await readLocalForms();
   const existed = forms.some(f => f.id === data.id);
   await writeLocalForms(existed ? forms.map(f => f.id === data.id ? data : f) : [...forms, data]);
@@ -100,7 +102,8 @@ export const saveLocalForm = createServerFn({ method: 'POST' }).inputValidator((
 });
 export const deleteLocalForm = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalForms, writeLocalForms } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const forms = await readLocalForms();
   await writeLocalForms(forms.filter(f => f.id !== data));
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
@@ -110,7 +113,7 @@ export const deleteLocalForm = createServerFn({ method: 'POST' }).inputValidator
 // Local test mode only: applications submitted on this computer, for the review page. Null outside test mode.
 export const getLocalApplications = createServerFn({ method: 'GET' }).handler(async () => {
   const { localMode, readLocalApplications, writeLocalApplications } = await import('./local-store.server');
-  if (!localMode()) return null;
+  if (!localMode() || !await (await import('./staff.server')).isStaff()) return null;
   const rows = await readLocalApplications();
   await writeLocalApplications(rows);
   const { lookupAvatar } = await import('./community.server');
@@ -118,7 +121,8 @@ export const getLocalApplications = createServerFn({ method: 'GET' }).handler(as
 });
 export const updateLocalApplication = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ id: z.string().uuid(), status: z.enum(['pending', 'accepted', 'denied', 'deleted']), reason: z.string().trim().max(1000).default('') }).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalApplications, writeLocalApplications } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const rows = await readLocalApplications();
   const row = rows.find(r => r.id === data.id);
   if (!row) throw new Error('Application not found.');
@@ -175,11 +179,13 @@ export const myApplications = createServerFn({ method: 'GET' }).handler(async ()
 export type ApplicationNote = { id: string; submission_id: string; author: string; body: string; created_at: string };
 export const getLocalApplicationNotes = createServerFn({ method: 'GET' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList } = await import('./local-store.server');
-  return localMode() ? (await readLocalList<ApplicationNote>('application-notes')).filter(n => n.submission_id === data) : null;
+  if (!localMode() || !await (await import('./staff.server')).isStaff()) return null;
+  return (await readLocalList<ApplicationNote>('application-notes')).filter(n => n.submission_id === data);
 });
 export const addLocalApplicationNote = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ submissionId: z.string().uuid(), body: z.string().trim().min(1).max(4000) }).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { readSession } = await import('./discord.server');
   const me = await readSession();
   const notes = await readLocalList<ApplicationNote>('application-notes');

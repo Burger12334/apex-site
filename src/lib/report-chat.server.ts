@@ -8,7 +8,7 @@ export type ReportSummary = { id: string; reported_name: string; status: string;
 // decision_reason is added by migration 0007, so every column is selected and a missing one reads as empty.
 const SUMMARY = '*';
 
-const localDir = () => `${process.cwd()}/.local-data`;
+const localDir = () => process.env['APEX_DATA_DIR'] || `${process.cwd()}/.local-data`;
 async function readLocal<T>(name: string): Promise<T[]> {
   const { readFile } = await import('node:fs/promises');
   try { return JSON.parse(await readFile(`${localDir()}/${name}`, 'utf8')) as T[]; } catch { return []; }

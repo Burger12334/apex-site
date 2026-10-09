@@ -59,7 +59,6 @@ function Reports() {
       const image = proof ? { data: await readBase64(proof), type: proof.type as ImageType } : undefined;
       const result = await send({ data: { discordId: targetId, reason: String(f.get('reason')), image } });
       pick(undefined); setTargetId(''); setDone(true); void qc.invalidateQueries({ queryKey: ['my-reports'] });
-      if (result.local) setNotice('Report saved on this computer (local copy).');
     } catch (err) { setNotice(err instanceof Error ? err.message : 'Could not send the report. Please try again.'); } finally { setBusy(false); }
   }
 

@@ -112,7 +112,9 @@ export const supervisorDecision = createServerFn({ method: 'POST' }).inputValida
 // Local test mode only: Discord alert settings kept on this computer. Returns null outside test mode.
 export const getLocalDiscordConfig = createServerFn({ method: 'GET' }).handler(async () => {
   const { localMode, readLocalDiscord } = await import('./local-store.server');
-  return localMode() ? readLocalDiscord() : null;
+  // Holds webhook addresses, so only staff may read it.
+  if (!localMode() || !await (await import('./staff.server')).isStaff()) return null;
+  return readLocalDiscord();
 });
 const localDiscord = z.object({
   webhook_url: z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL'),
@@ -121,6 +123,8 @@ const localDiscord = z.object({
   app_role_ids: z.record(z.string().uuid(), z.array(snowflake).max(20)),
   app_accept_roles: z.record(z.string().uuid(), z.string().trim().regex(/^(\d{17,20})?$/, 'Enter a valid role ID')),
   reapply_cooldown_days: z.number().int().min(0).max(365),
+  staff_role_ids: z.array(snowflake).max(20),
+  supervision_role_ids: z.array(snowflake).max(20),
   log_visitors: z.boolean(),
   events_webhook_url: z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for expeditions'),
   app_webhooks: z.record(z.string().uuid(), z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for each application')),
@@ -130,14 +134,16 @@ const localDiscord = z.object({
 });
 export const saveLocalDiscordConfig = createServerFn({ method: 'POST' }).inputValidator((d) => localDiscord.parse(d)).handler(async ({ data }) => {
   const { localMode, saveLocalDiscord } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   await saveLocalDiscord(data);
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
   await logEvent({ title: 'Discord settings updated', color: LOG_COLORS.edit, lines: [`**Report roles** ${data.ping_role_ids.length}`, `**Reports webhook** ${data.webhook_url ? 'set' : 'not set'}`, `**Applications webhook** ${data.app_webhook_url ? 'set' : 'not set'}`, `**Log webhook** ${data.log_webhook_url ? 'set' : 'not set'}`], by: await actorName() });
 });
 export const testLocalDiscord = createServerFn({ method: 'POST' }).handler(async () => {
   const { localMode } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { sendLocalTestAlert } = await import('./community.server'); const { readSession, currentOrigin } = await import('./discord.server');
   if (!await sendLocalTestAlert(await readSession(), currentOrigin())) throw new Error('Add a webhook URL and save first.');
 });
@@ -154,7 +160,8 @@ export const findReportTarget = createServerFn({ method: 'POST' }).inputValidato
 });
 export const testLocalLog = createServerFn({ method: 'POST' }).handler(async () => {
   const { localMode } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { logEvent, actorName } = await import('./audit-log.server');
   if (!await logEvent({ title: 'Test log entry', lines: ['The Apex activity log is connected to this channel.'], by: await actorName() })) throw new Error('Could not post to the log webhook. Check the URL and save first.');
 });
@@ -162,7 +169,8 @@ export const testLocalLog = createServerFn({ method: 'POST' }).handler(async () 
 // Local test mode only: team members kept on this computer (the database only accepts them from a signed-in editor).
 export const addLocalTeamMember = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ discord_id: snowflake, title: z.string().trim().min(1).max(100) }).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalTeam, writeLocalTeam } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { findDiscordUser } = await import('./community.server');
   const user = await findDiscordUser(data.discord_id);
   if (!user) throw new Error('No Discord user has that ID.');
@@ -174,7 +182,8 @@ export const addLocalTeamMember = createServerFn({ method: 'POST' }).inputValida
 });
 export const removeLocalTeamMember = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalTeam, writeLocalTeam } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const team = await readLocalTeam();
   const member = team.find(m => m.id === data);
   if (!member) throw new Error('That member is from the live site and can only be removed there.');
@@ -184,7 +193,8 @@ export const removeLocalTeamMember = createServerFn({ method: 'POST' }).inputVal
 });
 export const updateLocalTeamMember = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ id: z.string().uuid(), title: z.string().trim().min(1).max(100) }).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalTeam, writeLocalTeam } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const team = await readLocalTeam();
   const member = team.find(m => m.id === data.id);
   if (!member) throw new Error('That member is from the live site and can only be edited there.');
@@ -195,7 +205,8 @@ export const updateLocalTeamMember = createServerFn({ method: 'POST' }).inputVal
 // Takes every team member's id in the wanted order; each local member's position becomes its place in that list.
 export const reorderLocalTeam = createServerFn({ method: 'POST' }).inputValidator((d) => z.array(z.string().uuid()).max(200).parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalTeam, writeLocalTeam } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const team = await readLocalTeam();
   await writeLocalTeam(team.map(m => ({ ...m, sort_order: data.includes(m.id) ? data.indexOf(m.id) : m.sort_order })).sort((a, b) => a.sort_order - b.sort_order));
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
@@ -203,7 +214,17 @@ export const reorderLocalTeam = createServerFn({ method: 'POST' }).inputValidato
 });
 export const testLocalApplicationAlert = createServerFn({ method: 'POST' }).handler(async () => {
   const { localMode } = await import('./local-store.server');
-  if (!localMode()) throw new Error('Only available in local test mode');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
   const { sendLocalTestApplicationAlert } = await import('./community.server'); const { readSession, currentOrigin } = await import('./discord.server');
   if (!await sendLocalTestApplicationAlert(await readSession(), currentOrigin())) throw new Error('Add a webhook URL and save first.');
+});
+
+// What the current visitor may do: `store` is true when the site keeps its own data (no database service key),
+// `staff` opens the staff tools and `supervisor` the report reviews. Decided from the linked Discord account.
+export const getAccess = createServerFn({ method: 'GET' }).handler(async () => {
+  const { localMode } = await import('./local-store.server');
+  if (!localMode()) return { store: false, staff: false, supervisor: false };
+  const { readSession } = await import('./discord.server'); const { accessFor } = await import('./staff.server');
+  return { store: true, ...await accessFor(await readSession()) };
 });

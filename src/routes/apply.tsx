@@ -63,7 +63,7 @@ function AdminForms({ onClose, onNotice }: { onClose: () => void; onNotice: (m: 
     : run(() => supabase.from('application_forms').delete().eq('id', f.id), 'Deleted.');
   const editingForm = forms?.find(f => f.id === editing);
   return <section className="apps-section site-width">
-    <div className="section-header"><div><div className="eyebrow">CONTROL ROOM</div><h2>Edit applications.</h2><p>{isLocal ? 'Applications you create here are saved on this computer. Ones from the live site can only be edited there.' : 'Create forms and choose which are open.'}</p></div><div className="sub-actions"><Button variant="ghost" onClick={onClose}>Done</Button><Button onClick={addForm}><Plus />New application</Button></div></div>
+    <div className="section-header"><div><div className="eyebrow">CONTROL ROOM</div><h2>Edit applications.</h2><p>Create forms and choose which are open.</p></div><div className="sub-actions"><Button variant="ghost" onClick={onClose}>Done</Button><Button onClick={addForm}><Plus />New application</Button></div></div>
     <div className="staff-grid">{forms?.map(f => <article key={f.id} className="staff-card">
       <div className="staff-card-top"><span className={`sub-status ${f.is_open ? 'accepted' : 'pending'}`}>{f.is_open ? 'Open' : 'Hidden'}</span><span className="app-count">{f.questions.length} QUESTIONS</span></div>
       <h3>{f.title}</h3><p>{f.description || 'No description yet.'}</p>
