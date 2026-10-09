@@ -1,0 +1,3 @@
+CREATE POLICY apex_logo_read ON storage.objects FOR SELECT TO anon, authenticated USING (bucket_id='apex-logos');
+CREATE POLICY apex_logo_upload ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='apex-logos' AND public.apex_role() IN ('owner','editor'));
+CREATE POLICY apex_logo_delete ON storage.objects FOR DELETE TO authenticated USING (bucket_id='apex-logos' AND public.apex_role() IN ('owner','editor'));

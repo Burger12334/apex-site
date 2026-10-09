@@ -1,0 +1,97 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791256013326,
+      "tag": "0000_apex_site_and_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791256046848,
+      "tag": "0001_apex_logo_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791256944314,
+      "tag": "0002_apex_applications",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791484481132,
+      "tag": "0003_apex_community_reports_notes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791514800000,
+      "tag": "0004_apex_admin_emails",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791518400000,
+      "tag": "0005_apex_application_ping_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791522000000,
+      "tag": "0006_apex_report_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791525600000,
+      "tag": "0007_apex_decision_reasons",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791529200000,
+      "tag": "0008_apex_log_webhook",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791532800000,
+      "tag": "0009_apex_application_channel",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791536400000,
+      "tag": "0010_apex_application_alert_channel",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791540000000,
+      "tag": "0011_apex_expeditions_roles_cooldown",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791543600000,
+      "tag": "0012_apex_log_visitors",
+      "breakpoints": true
+    }
+  ]
+}
