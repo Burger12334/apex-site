@@ -1,46 +1,45 @@
 # Hosting the Apex site
 
-The site is a Node server. It does not need Lovable. It keeps its own records (reports, applications, team, Discord settings, expeditions) as files in one folder.
+Live address: https://apexk2.buildablelabs.dev (Cloudflare Workers). The site does not need Lovable. It keeps its own records (reports, applications, team, Discord settings, expeditions).
 
-## What the host must provide
+## Cloudflare (the live site)
 
-- **Node 20 or newer** with a long-running process (a VPS, Railway, Render, Fly.io, or any "Node app" hosting). Plain file hosting that only serves HTML cannot run it.
-- **A folder that survives restarts and redeploys.** Point `APEX_DATA_DIR` at it. If the folder is wiped on each deploy, every report and application is lost.
+`npm run build` produces a Cloudflare Worker in `.output` (config in `.output/server/wrangler.json`).
 
-## Commands
+The Worker needs three things set by whoever runs the Cloudflare account:
+
+1. **A KV namespace bound as `APEX_DATA`.** This is where every record is stored. Without it pages load but nothing can be saved.
+
+   ```json
+   "kv_namespaces": [{ "binding": "APEX_DATA", "id": "<namespace id>" }]
+   ```
+
+2. **Secrets and variables.** The names are in [.env.example](.env.example); the values are in the owner's `.env` file. The secret ones (`DISCORD_CLIENT_SECRET`, `DISCORD_SESSION_SECRET`, `DISCORD_BOT_TOKEN`) go in as Worker secrets. Leave `SUPABASE_SERVICE_ROLE_KEY` unset.
+
+3. **`APEX_ADMIN_DISCORD_IDS`**: the Discord user IDs with full staff access, separated by commas. Other staff are granted by Discord role in the site's Discord settings panel (Staff access).
+
+### Moving the existing records in
+
+On the owner's computer:
 
 ```bash
-npm install
+node scripts/kv-export.mjs
 ```
+
+That writes `.local-data/kv-bulk.json` (private: it holds webhook addresses, reports and applications). Load it once:
 
 ```bash
-npm run build
+npx wrangler kv bulk put .local-data/kv-bulk.json --namespace-id <namespace id> --remote
 ```
 
-```bash
-npm start
-```
-
-The server listens on `PORT` (default 3000).
-
-## Settings
-
-Enter the names listed in [.env.example](.env.example) in the host's environment variables screen, with the values from the `.env` file on the owner's computer. `npm start` does not read `.env` by itself.
-
-`APEX_ADMIN_DISCORD_IDS` lists the Discord user IDs with full staff access. Other staff are granted by Discord role in the site's Discord settings panel (Staff access).
-
-## Moving existing records
-
-Copy the contents of the `.local-data` folder from the owner's computer into the host's `APEX_DATA_DIR` folder before the first start. It holds the team, applications, reports and Discord settings.
-
-## Discord
+### Discord
 
 In the Discord developer portal, under OAuth2 → Redirects, add:
 
 ```
-https://YOUR-DOMAIN/api/public/discord/callback
+https://apexk2.buildablelabs.dev/api/public/discord/callback
 ```
 
-## Other kinds of host
+## A plain Node server instead
 
-Set `NITRO_PRESET` before building (for example `vercel` or `netlify`). Those platforms have no permanent folder, so records would not be kept; use a host with a persistent disk.
+Build with `NITRO_PRESET=node-server`, start with `npm start` (listens on `PORT`, default 3000). Records are then files in `APEX_DATA_DIR` (default `.local-data`), which must be a folder that survives restarts and redeploys. `npm start` does not read `.env` by itself.

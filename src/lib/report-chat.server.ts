@@ -1,6 +1,6 @@
 // Chat between the person who sent a report and Apex supervision.
 // Live: rows in public.report_messages (migration 0006), written with the service role only.
-// Local test mode: .local-data/report-messages.json, next to the locally stored reports.
+// Own storage: report-messages.json, next to the stored reports.
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { ReportMessage } from './report-chat.functions';
 
@@ -8,10 +8,9 @@ export type ReportSummary = { id: string; reported_name: string; status: string;
 // decision_reason is added by migration 0007, so every column is selected and a missing one reads as empty.
 const SUMMARY = '*';
 
-const localDir = () => process.env['APEX_DATA_DIR'] || `${process.cwd()}/.local-data`;
 async function readLocal<T>(name: string): Promise<T[]> {
-  const { readFile } = await import('node:fs/promises');
-  try { return JSON.parse(await readFile(`${localDir()}/${name}`, 'utf8')) as T[]; } catch { return []; }
+  const { readJson } = await import('./storage.server');
+  return readJson<T[]>(name, []);
 }
 const summarize = ({ id, reported_name, status, created_at, reporter_discord_id, decision_reason }: Omit<ReportSummary, 'decision_reason'> & { decision_reason?: string }): ReportSummary => ({ id, reported_name, status, created_at, reporter_discord_id, decision_reason: decision_reason ?? '' });
 
@@ -43,11 +42,9 @@ export async function listReportMessages(reportId: string): Promise<ReportMessag
 }
 export async function addReportMessage(row: ReportMessage) {
   if (await isLocal()) {
-    const { mkdir, writeFile } = await import('node:fs/promises');
     const rows = await readLocal<ReportMessage>('report-messages.json');
     rows.push(row);
-    await mkdir(localDir(), { recursive: true });
-    await writeFile(`${localDir()}/report-messages.json`, JSON.stringify(rows, null, 2));
+    await (await import('./storage.server')).writeJson('report-messages.json', rows);
     return;
   }
   const { error } = await (await db()).from('report_messages').insert(row);
