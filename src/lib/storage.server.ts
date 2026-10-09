@@ -12,18 +12,23 @@ const kv = () => (globalThis as { __env__?: Record<string, unknown> }).__env__?.
 const onCloudflare = () => typeof navigator !== 'undefined' && navigator.userAgent === 'Cloudflare-Workers';
 export const dataDir = () => process.env['APEX_DATA_DIR'] || `${process.cwd()}/.local-data`;
 
+// KV can hand back the previous value for up to a minute after a write. What this server instance wrote itself
+// is remembered for that long, so a save is never followed by a read of the older copy here.
+const recent = new Map<string, { text: string; at: number }>();
+const FRESH_MS = 90_000;
+
 function missing(): never { throw new Error('Site storage is not set up yet: the host needs a KV namespace bound as APEX_DATA.'); }
 
 export async function readText(name: string): Promise<string | null> {
   const store = kv();
-  if (store) return store.get(name, 'text');
+  if (store) { const mine = recent.get(name); if (mine && Date.now() - mine.at < FRESH_MS) return mine.text; return store.get(name, 'text'); }
   if (onCloudflare()) return null;
   const { readFile } = await import('node:fs/promises');
   return readFile(`${dataDir()}/${name}`, 'utf8').catch(() => null);
 }
 export async function writeText(name: string, text: string) {
   const store = kv();
-  if (store) return store.put(name, text);
+  if (store) { recent.set(name, { text, at: Date.now() }); return store.put(name, text); }
   if (onCloudflare()) missing();
   await writeFileAt(name, text);
 }

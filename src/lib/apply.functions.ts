@@ -115,7 +115,6 @@ export const getLocalApplications = createServerFn({ method: 'GET' }).handler(as
   const { localMode, readLocalApplications, writeLocalApplications } = await import('./local-store.server');
   if (!localMode() || !await (await import('./staff.server')).isStaff()) return null;
   const rows = await readLocalApplications();
-  await writeLocalApplications(rows);
   const { lookupAvatar } = await import('./community.server');
   return Promise.all(rows.map(async row => ({ ...row, avatar_url: await lookupAvatar(row.discord_id) })));
 });

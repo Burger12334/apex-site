@@ -55,15 +55,19 @@ export async function addReportMessage(row: ReportMessage) {
 // acting as, and that claim is checked here.
 export async function chatAccess(reportId: string, as: 'reporter' | 'supervision') {
   const { readSession } = await import('./discord.server');
-  const me = await readSession();
-  if (!me) throw new Error('Link your Discord first.');
+  const linked = await readSession();
   const report = await reportSummary(reportId);
-  if (!report) throw new Error('Report not found.');
   if (as === 'supervision') {
     const { supervisor } = await import('./community.server');
-    if (!await supervisor()) throw new Error('Supervision access required');
-  } else if (report.reporter_discord_id !== me.id) throw new Error('This is not your report.');
-  return { me, report };
+    const me = await supervisor();
+    if (!me) throw new Error('Supervision access required');
+    if (!report) throw new Error('Report not found.');
+    return { me, report };
+  }
+  if (!linked) throw new Error('Link your Discord first.');
+  if (!report) throw new Error('Report not found.');
+  if (report.reporter_discord_id !== linked.id) throw new Error('This is not your report.');
+  return { me: linked, report };
 }
 
 // Direct message telling the reporter that supervision replied. It carries a link, not the reply itself.

@@ -85,9 +85,15 @@ export async function enrichIdentity(me: DiscordUser) {
   const role = await highestRole(me.id);
   return { ...me, avatar_url: avatarUrl(me), highest_role: role?.name ?? null, role };
 }export async function supervisor() {
-  const { readSession } = await import('./discord.server'); const me = await readSession(); if (!me) return null;
+  const { readSession } = await import('./discord.server'); const me = await readSession();
   // Without the database's supervision list, reviewers are staff and anyone with a supervision role.
-  const { localMode } = await import('./local-store.server'); if (localMode()) return (await (await import('./staff.server')).accessFor(me)).supervisor ? me : null;
+  // An admin signed in with Google who has not linked Discord reviews under a neutral name.
+  const { localMode } = await import('./local-store.server');
+  if (localMode()) {
+    if (!(await (await import('./staff.server')).accessFor(me)).supervisor) return null;
+    return me ?? { id: 'admin', username: 'Apex Admin', avatar: null };
+  }
+  if (!me) return null;
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server'); const { data, error } = await supabaseAdmin.from('supervision_members').select('id').eq('discord_id', me.id).maybeSingle();
   if (error) throw new Error(error.message); return data ? me : null;
 }
