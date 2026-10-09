@@ -89,6 +89,7 @@ function Reports() {
                 : <label className="proof-drop"><ImagePlus /><span>Attach an image</span><input type="file" accept={IMAGE_TYPES.join(',')} onChange={e => pick(e.target.files?.[0])} /></label>}
             </div>
             <div className="submit-bar"><div className="draft-bar"><span className="draft-hint">False reports may lead to action on your own account.</span></div><div className="apply-submit"><Button disabled={busy} size="lg"><Send />{busy ? 'Sending…' : 'Send report'}</Button></div></div>
+            <p className="legal-note">By submitting you agree to the <Link to="/terms">Terms of Service</Link> and <Link to="/privacy">Privacy Policy</Link>.</p>
           </form>}
       </section>
       <MyReports enabled={!!me.data} />

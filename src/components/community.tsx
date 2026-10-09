@@ -56,18 +56,74 @@ export function DiscordSettings() {
   const local = useQuery({ queryKey: ['local-discord'], queryFn: () => getLocalDiscordConfig() });
   if (!isAdmin) return null;
   if (local.data) return <LocalDiscordSettings config={local.data} />;
-  // The log webhook column arrives with migration 0008; the field stays hidden until the database has it.
-  const saved = config.data as (Record<string, unknown> & { log_webhook_url?: string; application_channel_id?: string }) | null | undefined; const hasLog = !!saved && 'log_webhook_url' in saved; const hasAppChannel = !!saved && 'application_channel_id' in saved;
+  // Newer options (applications channel, re-apply wait, expeditions channel, activity log) each need a database
+  // column added by a later migration. A field is only shown once the saved settings row has its column.
+  const saved = config.data as (Record<string, unknown> & { guild_id?: string; channel_id?: string; ping_role_ids?: string[]; log_webhook_url?: string; application_channel_id?: string; reapply_cooldown_days?: number; events_channel_id?: string; log_visitors?: boolean }) | null | undefined;
+  const has = (column: string) => !!saved && column in saved;
   async function save(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const f = new FormData(e.currentTarget); const ids = String(f.get('roles')).split(/[\s,]+/).filter(Boolean);
     if (ids.some(id => !/^\d{17,20}$/.test(id))) { setMessage('Enter valid role IDs separated by commas.'); return; }
     const log = String(f.get('log') ?? '').trim();
     if (log && !/^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(log)) { setMessage('Enter a Discord webhook URL for the log.'); return; }
-    setBusy(true); const { error } = await supabase.from('discord_settings').upsert({ id: 'main', guild_id: String(f.get('guild')), channel_id: String(f.get('channel')), ping_role_ids: ids, ...(hasLog ? { log_webhook_url: log } : {}), ...(hasAppChannel ? { application_channel_id: String(f.get('app_channel') ?? '').trim() } : {}) } as never); setBusy(false); setMessage(error?.message ?? 'Discord settings saved.'); if (!error) logStaff('Discord settings updated'); if (!error) await Promise.all([qc.invalidateQueries({ queryKey: ['discord-settings'] }), qc.invalidateQueries({ queryKey: ['discord-me'] })]);
+    const values = {
+      id: 'main', guild_id: String(f.get('guild')).trim(), channel_id: String(f.get('channel')).trim(), ping_role_ids: ids,
+      ...(has('application_channel_id') ? { application_channel_id: String(f.get('app_channel') ?? '').trim() } : {}),
+      ...(has('reapply_cooldown_days') ? { reapply_cooldown_days: Math.max(0, Math.min(365, Math.round(Number(f.get('cooldown') || 0)))) } : {}),
+      ...(has('events_channel_id') ? { events_channel_id: String(f.get('events_channel') ?? '').trim() } : {}),
+      ...(has('log_webhook_url') ? { log_webhook_url: log } : {}),
+      ...(has('log_visitors') ? { log_visitors: f.get('log_visitors') === 'on' } : {}),
+    };
+    setBusy(true); const { error } = await supabase.from('discord_settings').upsert(values as never); setBusy(false);
+    setMessage(error?.message ?? 'Discord settings saved.');
+    if (!error) { logStaff('Discord settings updated'); await Promise.all([qc.invalidateQueries({ queryKey: ['discord-settings'] }), qc.invalidateQueries({ queryKey: ['discord-me'] })]); }
   }
-  return <div className="editor-bottom site-width"><span className="editor-bottom-label">Editors only</span><Button variant="outline" onClick={() => setOpen(true)}><Settings2 />Discord & supervision settings</Button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="editor-dialog"><DialogTitle>Discord & supervision</DialogTitle><DialogDescription>Notifications and report reviewers</DialogDescription>{config.isLoading ? <p>Loading settings…</p> : <form key={config.data?.guild_id ?? 'new'} className="editor-form" onSubmit={save}><label>Discord server ID<input name="guild" pattern="[0-9]{17,20}" required defaultValue={config.data?.guild_id} /></label><label>Report notification channel ID<input name="channel" pattern="[0-9]{17,20}" required defaultValue={config.data?.channel_id} /></label><label>Role IDs to ping<input name="roles" defaultValue={config.data?.ping_role_ids.join(', ')} placeholder="Role IDs, separated by commas" /></label>{hasAppChannel && <label>Applications channel ID<input name="app_channel" pattern="[0-9]{17,20}" defaultValue={saved?.application_channel_id ?? ''} placeholder="Leave empty to use the reports channel" /></label>}{hasLog && <label>Activity log webhook URL<input name="log" type="url" defaultValue={saved?.log_webhook_url ?? ''} placeholder="https://discord.com/api/webhooks/…" /></label>}<Button disabled={busy}><Save />Save Discord settings</Button></form>}<h3>Supervision access</h3><form className="editor-form" onSubmit={async e => { e.preventDefault(); const form = e.currentTarget; const f = new FormData(form); const { error } = await supabase.from('supervision_members').insert({ discord_id: String(f.get('id')).trim(), username: String(f.get('name')).trim() }); setMessage(error?.message ?? 'Supervision member added.'); if (!error) logStaff('Supervision member added', [String(f.get('name')).trim()]); if (!error) { form.reset(); await qc.invalidateQueries({ queryKey: ['supervision-members'] }); } }}><label>Discord user ID<input name="id" pattern="[0-9]{17,20}" required /></label><label>Name<input name="name" required maxLength={100} /></label><Button variant="outline"><Plus />Add to supervision</Button></form><div className="editor-list">{supervisors.data?.map(s => <div key={s.id}><span>{s.username}<small>{s.discord_id}</small></span><Button variant="ghost" size="icon" aria-label={`Remove supervision access for ${s.username}`} onClick={async () => { const { error } = await supabase.from('supervision_members').delete().eq('id', s.id); setMessage(error?.message ?? 'Access removed.'); if (!error) logStaff('Supervision member removed', [s.username]); await qc.invalidateQueries({ queryKey: ['supervision-members'] }); }}><Trash2 /></Button></div>)}</div>{message && <p role="status" className="editor-message">{message}</p>}</DialogContent></Dialog></div>;
+  async function addSupervisor(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const form = e.currentTarget; const f = new FormData(form); const name = String(f.get('name')).trim();
+    const { error } = await supabase.from('supervision_members').insert({ discord_id: String(f.get('id')).trim(), username: name });
+    setMessage(error?.message ?? 'Supervision member added.');
+    if (!error) { logStaff('Supervision member added', [name]); form.reset(); await qc.invalidateQueries({ queryKey: ['supervision-members'] }); }
+  }
+  async function removeSupervisor(id: string, name: string) {
+    const { error } = await supabase.from('supervision_members').delete().eq('id', id);
+    setMessage(error?.message ?? 'Access removed.');
+    if (!error) logStaff('Supervision member removed', [name]);
+    await qc.invalidateQueries({ queryKey: ['supervision-members'] });
+  }
+  return <div className="editor-bottom site-width"><span className="editor-bottom-label">Editors only</span><Button variant="outline" onClick={() => setOpen(true)}><Settings2 />Discord settings</Button>
+    <Dialog open={open} onOpenChange={setOpen}><DialogContent className="settings-panel">
+      <header className="settings-head"><span className="settings-badge"><DiscordIcon /></span><div><DialogTitle>Discord settings</DialogTitle><DialogDescription>Where reports, applications and the activity log are posted, who gets pinged, and who reviews reports.</DialogDescription></div></header>
+      <div className="settings-form">
+        <div className="settings-scroll">
+          {config.isLoading ? <p className="field-hint settings-note">Loading settings…</p> : <form id="discord-settings" key={JSON.stringify(saved ?? {})} className="settings-stack" onSubmit={save}>
+            <SettingsCard icon={<Server />} tone="tone-blue" title="Server" text="The server whose roles show next to people's names. The Apex bot must be in it." ready={!!saved?.guild_id}>
+              <label>Discord server ID<input name="guild" pattern="[0-9]{17,20}" required defaultValue={saved?.guild_id ?? ''} /></label>
+            </SettingsCard>
+            <SettingsCard icon={<ShieldAlert />} tone="tone-report" title="Reports" text="Every new report is posted to this channel by the Apex bot." ready={!!saved?.channel_id}>
+              <label>Channel ID<input name="channel" pattern="[0-9]{17,20}" required defaultValue={saved?.channel_id ?? ''} /><small className="field-hint">In Discord, turn on Developer Mode, right-click the channel and choose Copy Channel ID. The bot needs permission to post there.</small></label>
+              <label>Roles to ping<input name="roles" defaultValue={(saved?.ping_role_ids ?? []).join(', ')} placeholder="Role IDs, separated by commas" /></label>
+            </SettingsCard>
+            {(has('application_channel_id') || has('reapply_cooldown_days')) && <SettingsCard icon={<Flag />} tone="tone-violet" title="Applications" text="Each application's own channel, ping roles and accept role are set where you edit that application." ready={!!(saved?.application_channel_id || saved?.channel_id)}>
+              {has('application_channel_id') && <label>Shared applications channel ID<input name="app_channel" pattern="[0-9]{17,20}" defaultValue={saved?.application_channel_id ?? ''} placeholder="Leave empty to use the reports channel" /></label>}
+              {has('reapply_cooldown_days') && <label>Days before someone can re-apply after a denial<input name="cooldown" type="number" min={0} max={365} defaultValue={saved?.reapply_cooldown_days ?? 0} /><small className="field-hint">0 means they can apply again straight away.</small></label>}
+            </SettingsCard>}
+            {has('events_channel_id') && <SettingsCard icon={<CalendarDays />} tone="tone-orange" title="Expeditions" text="New expeditions are announced in this channel." ready={!!saved?.events_channel_id}>
+              <label>Channel ID<input name="events_channel" pattern="[0-9]{17,20}" defaultValue={saved?.events_channel_id ?? ''} placeholder="Leave empty for no announcement" /></label>
+            </SettingsCard>}
+            {has('log_webhook_url') && <SettingsCard icon={<ScrollText />} tone="tone-teal" title="Activity log" text="Everything that happens on the site is posted here. Nobody is pinged." ready={!!saved?.log_webhook_url}>
+              <label>Webhook URL<input name="log" type="url" defaultValue={saved?.log_webhook_url ?? ''} placeholder={WEBHOOK_HINT} /><small className="field-hint">Leave empty to turn the log off.</small></label>
+              {has('log_visitors') && <label className="settings-check"><input type="checkbox" name="log_visitors" defaultChecked={!!saved?.log_visitors} />Also log visitor activity<small className="field-hint">Every page a visitor opens and every Instagram or Discord link they click.</small></label>}
+            </SettingsCard>}
+            {!saved && <p className="field-hint settings-note">Save the server and reports channel first. More options appear here once they are saved.</p>}
+          </form>}
+          <SettingsCard icon={<Users />} tone="tone-violet" title="Supervision" text="The Discord accounts allowed to review reports." ready={!!supervisors.data?.length}>
+            <form className="settings-inline" onSubmit={addSupervisor}><label>Discord user ID<input name="id" pattern="[0-9]{17,20}" required /></label><label>Name<input name="name" required maxLength={100} /></label><Button variant="outline" size="sm"><Plus />Add to supervision</Button></form>
+            <div className="editor-list">{supervisors.data?.map(s => <div key={s.id}><span>{s.username}<small>{s.discord_id}</small></span><Button variant="ghost" size="icon" aria-label={`Remove supervision access for ${s.username}`} onClick={() => void removeSupervisor(s.id, s.username)}><Trash2 /></Button></div>)}</div>
+          </SettingsCard>
+        </div>
+        <footer className="settings-foot">{message && <p role="status" className="settings-message">{message}</p>}<Button form="discord-settings" disabled={busy || config.isLoading}><Save />{busy ? 'Saving…' : 'Save settings'}</Button></footer>
+      </div>
+    </DialogContent></Dialog></div>;
 }
-
 // One titled block in the Discord settings panel, with a badge saying whether it is set up.
 function SettingsCard({ icon, tone, title, text, ready, children }: { icon: ReactNode; tone: string; title: string; text: string; ready: boolean; children: ReactNode }) {
   return <section className={`settings-card ${tone}`}>

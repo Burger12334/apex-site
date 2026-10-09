@@ -82,6 +82,7 @@ function FormPage() {
             <div className="draft-bar">{savedAt ? <><span className="draft-saved"><CloudCheck />Saved on this device · {savedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span><Button type="button" variant="ghost" size="sm" onClick={() => { if (confirm('Clear all your answers?')) setAnswers({}); }}><Eraser />Clear</Button></> : <span className="draft-hint">Your answers are saved on this device as you type.</span>}</div>
             <div className="apply-submit">{me.data ? <Button disabled={busy} size="lg">{busy ? 'Sending…' : <>Submit application<Send /></>}</Button> : <Button type="button" size="lg" onClick={linkDiscord}><DiscordIcon />Link Discord to submit</Button>}</div>
           </div>
+          <p className="legal-note">By submitting you agree to the <Link to="/terms">Terms of Service</Link> and <Link to="/privacy">Privacy Policy</Link>.</p>
         </form>}
       </section>
     </div>

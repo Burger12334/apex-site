@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import type { Database } from '@/integrations/supabase/types';
 
 export type Question = { id: string; label: string; type: 'short' | 'long'; required: boolean };
-export type ApplicationForm = { id: string; title: string; description: string; questions: Question[]; is_open: boolean; sort_order: number; ping_role_ids?: string[]; alert_channel_id?: string };
+export type ApplicationForm = { id: string; title: string; description: string; questions: Question[]; is_open: boolean; sort_order: number; ping_role_ids?: string[]; alert_channel_id?: string; accept_role_id?: string };
 
 export const getForms = createServerFn({ method: 'GET' }).handler(async () => {
   const url = process.env['SUPABASE_URL'];

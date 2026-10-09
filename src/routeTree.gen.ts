@@ -12,8 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as ExpeditionsRouteImport } from './routes/expeditions'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RulesRouteImport } from './routes/rules'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApplyFormIdRouteImport } from './routes/apply_.$formId'
 import { Route as ApplyReviewsRouteImport } from './routes/apply_.reviews'
 import { Route as ReportsReviewsRouteImport } from './routes/reports_.reviews'
@@ -36,6 +38,11 @@ const ExpeditionsRoute = ExpeditionsRouteImport.update({
   path: '/expeditions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReportsRoute = ReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
@@ -44,6 +51,11 @@ const ReportsRoute = ReportsRouteImport.update({
 const RulesRoute = RulesRouteImport.update({
   id: '/rules',
   path: '/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApplyFormIdRoute = ApplyFormIdRouteImport.update({
@@ -82,8 +94,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
+  '/terms': typeof TermsRoute
   '/apply/$formId': typeof ApplyFormIdRoute
   '/apply/reviews': typeof ApplyReviewsRoute
   '/reports/reviews': typeof ReportsReviewsRoute
@@ -95,8 +109,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
+  '/terms': typeof TermsRoute
   '/apply/$formId': typeof ApplyFormIdRoute
   '/apply/reviews': typeof ApplyReviewsRoute
   '/reports/reviews': typeof ReportsReviewsRoute
@@ -109,8 +125,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
+  '/terms': typeof TermsRoute
   '/apply_/$formId': typeof ApplyFormIdRoute
   '/apply_/reviews': typeof ApplyReviewsRoute
   '/reports_/reviews': typeof ReportsReviewsRoute
@@ -124,8 +142,10 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/privacy'
     | '/reports'
     | '/rules'
+    | '/terms'
     | '/apply/$formId'
     | '/apply/reviews'
     | '/reports/reviews'
@@ -137,8 +157,10 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/privacy'
     | '/reports'
     | '/rules'
+    | '/terms'
     | '/apply/$formId'
     | '/apply/reviews'
     | '/reports/reviews'
@@ -150,8 +172,10 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/privacy'
     | '/reports'
     | '/rules'
+    | '/terms'
     | '/apply_/$formId'
     | '/apply_/reviews'
     | '/reports_/reviews'
@@ -164,8 +188,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplyRoute: typeof ApplyRoute
   ExpeditionsRoute: typeof ExpeditionsRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReportsRoute: typeof ReportsRoute
   RulesRoute: typeof RulesRoute
+  TermsRoute: typeof TermsRoute
   ApplyFormIdRoute: typeof ApplyFormIdRoute
   ApplyReviewsRoute: typeof ApplyReviewsRoute
   ReportsReviewsRoute: typeof ReportsReviewsRoute
@@ -197,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExpeditionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reports': {
       id: '/reports'
       path: '/reports'
@@ -209,6 +242,13 @@ declare module '@tanstack/react-router' {
       path: '/rules'
       fullPath: '/rules'
       preLoaderRoute: typeof RulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/apply_/$formId': {
@@ -260,8 +300,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplyRoute: ApplyRoute,
   ExpeditionsRoute: ExpeditionsRoute,
+  PrivacyRoute: PrivacyRoute,
   ReportsRoute: ReportsRoute,
   RulesRoute: RulesRoute,
+  TermsRoute: TermsRoute,
   ApplyFormIdRoute: ApplyFormIdRoute,
   ApplyReviewsRoute: ApplyReviewsRoute,
   ReportsReviewsRoute: ReportsReviewsRoute,

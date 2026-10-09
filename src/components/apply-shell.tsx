@@ -36,7 +36,7 @@ export function useApplyAccess() {
   return { user, me, role, isAdmin, isSupervisor, linkDiscord, unlink };
 }
 
-export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-reviews' | 'expeditions' | 'rules';
+export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-reviews' | 'expeditions' | 'rules' | 'legal';
 
 export function ApplyShell({ children, active, notice, onNotice }: { children: ReactNode; active: ShellPage; notice?: string; onNotice?: (m: string) => void }) {
   const { data } = useSuspenseQuery(apexQuery);
@@ -65,7 +65,7 @@ export function ApplyShell({ children, active, notice, onNotice }: { children: R
       <div className="header-actions"><DiscordAccount /><Button className="admin-button" variant="ghost" onClick={() => setEditor(true)}><LockKeyhole />{user ? (role.data ? 'Control room' : 'Account') : 'Admin'}</Button></div>
     </div></header>
     <main>{children}</main>
-    <footer className="apex-footer site-width"><Link className="brand" to="/">{brand}</Link><span className="footer-copy">© {new Date().getFullYear()} {settings.name}. {settings.footer_text}</span><span className="footer-end"><Mountain size={13} />Made for the ascent.</span></footer>
+    <footer className="apex-footer site-width"><Link className="brand" to="/">{brand}</Link><span className="footer-copy">© {new Date().getFullYear()} {settings.name}. {settings.footer_text}</span><nav className="footer-links" aria-label="Site information"><Link to="/rules">Rules</Link><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link></nav></footer>
     <DiscordSettings />
     <SiteHelper discordUrl={settings.discord_url} />
     <SocialPopups discordUrl={settings.discord_url} />
