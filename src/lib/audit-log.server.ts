@@ -18,7 +18,9 @@ export async function actorName(fallback = 'Site editor') {
   try {
     const { readSession } = await import('./discord.server');
     const me = await readSession();
-    return me ? `<@${me.id}> (${me.username})` : fallback;
+    if (me) return `<@${me.id}> (${me.username})`;
+    const admin = await (await import('./admin.server')).readAdmin();
+    return admin ? `Admin ${admin}` : fallback;
   } catch { return fallback; }
 }
 

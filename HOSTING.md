@@ -18,6 +18,14 @@ The Worker needs three things set by whoever runs the Cloudflare account:
 
 3. **`APEX_ADMIN_DISCORD_IDS`**: the Discord user IDs with full staff access, separated by commas. Other staff are granted by Discord role in the site's Discord settings panel (Staff access).
 
+4. **Admin sign-in with Google**: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (secret) and `APEX_ADMIN_EMAILS` (the Google account emails allowed in, separated by commas). The client comes from Google Cloud console → APIs & Services → Credentials → Create credentials → OAuth client ID → Web application, with this authorized redirect URI:
+
+   ```
+   https://apexk2.buildablelabs.dev/api/public/google/callback
+   ```
+
+   Until these are set, the Admin panel says Google sign-in is not set up; staff can still get in by linking Discord.
+
 ### Moving the existing records in
 
 On the owner's computer:

@@ -221,10 +221,10 @@ export const testLocalApplicationAlert = createServerFn({ method: 'POST' }).hand
 });
 
 // What the current visitor may do: `store` is true when the site keeps its own data (no database service key),
-// `staff` opens the staff tools and `supervisor` the report reviews. Decided from the linked Discord account.
+// `staff` opens the staff tools and `supervisor` the report reviews, decided from the linked Discord account or a`n// Google admin sign-in. `admin` is the signed-in admin's email; `google` says whether Google sign-in is set up.
 export const getAccess = createServerFn({ method: 'GET' }).handler(async () => {
   const { localMode } = await import('./local-store.server');
-  if (!localMode()) return { store: false, staff: false, supervisor: false };
-  const { readSession } = await import('./discord.server'); const { accessFor } = await import('./staff.server');
-  return { store: true, ...await accessFor(await readSession()) };
+  if (!localMode()) return { store: false, staff: false, supervisor: false, admin: null as string | null, google: false };
+  const { readSession } = await import('./discord.server'); const { accessFor } = await import('./staff.server'); const { readAdmin, googleReady } = await import('./admin.server');
+  return { store: true, ...await accessFor(await readSession()), admin: await readAdmin(), google: googleReady() };
 });

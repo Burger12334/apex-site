@@ -27,6 +27,21 @@ function safeEqual(a: string, b: string) {
   return r === 0;
 }
 
+// A value signed with the session secret, for cookies the browser must not be able to forge.
+export async function signPayload(data: object) {
+  const payload = b64url(enc.encode(JSON.stringify(data)));
+  return `${payload}.${await hmac(payload)}`;
+}
+export async function readPayload<T extends { exp: number }>(raw: string | undefined): Promise<T | null> {
+  const [payload, sig] = (raw ?? '').split('.');
+  if (!payload || !sig) return null;
+  try {
+    if (!safeEqual(sig, await hmac(payload))) return null;
+    const data = JSON.parse(fromB64url(payload)) as T;
+    return typeof data.exp === 'number' && data.exp > Date.now() ? data : null;
+  } catch { return null; }
+}
+
 export function requestOrigin(request: Request) {
   const url = new URL(request.url);
   const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host') ?? url.host;

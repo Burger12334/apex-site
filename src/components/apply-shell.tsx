@@ -33,7 +33,7 @@ export function useApplyAccess() {
   // After linking, Discord sends people back to the homepage.
   const linkDiscord = () => { window.location.href = '/api/public/discord/login'; };
   const unlink = async () => { await fetch('/api/public/discord/logout', { method: 'POST' }); await Promise.all([qc.invalidateQueries({ queryKey: ['discord-me'] }), qc.invalidateQueries({ queryKey: ['supervision-access'] }), qc.invalidateQueries({ queryKey: ['access'] })]); };
-  return { user, me, role, isAdmin, isSupervisor, linkDiscord, unlink };
+  return { user, me, role, access, isAdmin, isSupervisor, linkDiscord, unlink };
 }
 
 export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-reviews' | 'expeditions' | 'rules' | 'legal';
@@ -41,7 +41,7 @@ export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-revie
 export function ApplyShell({ children, active, notice, onNotice }: { children: ReactNode; active: ShellPage; notice?: string; onNotice?: (m: string) => void }) {
   const { data } = useSuspenseQuery(apexQuery);
   const { settings } = data;
-  const { user, role, isAdmin, isSupervisor } = useApplyAccess();
+  const { user, role, access, isAdmin, isSupervisor } = useApplyAccess();
   const [editor, setEditor] = useState(false);
   // The header drops away while scrolling down and returns on the way back up; sections animate in as they appear.
   const headerHidden = useHideOnScroll(); useScrollReveal();
@@ -62,7 +62,7 @@ export function ApplyShell({ children, active, notice, onNotice }: { children: R
     <div className="scroll-progress" aria-hidden="true" />
     <header className={`apex-header ${headerHidden ? 'is-hidden' : ''}`}><div className="apex-header-inner site-width"><Link to="/" className="brand" aria-label="Apex home">{brand}</Link>
       <nav className="header-nav" aria-label="Main navigation"><Link className={nav('home')} to="/" activeOptions={{ exact: true }}>Basecamp</Link><Link className={nav('apply')} to="/apply" activeOptions={{ exact: true }}>Applications</Link><Link className={nav('expeditions')} to="/expeditions">Expeditions</Link><Link className={nav('reports')} to="/reports" activeOptions={{ exact: true }}>Reports</Link><Link className={nav('rules')} to="/rules">Rules</Link>{isAdmin && <Link className={nav('reviews')} to="/apply/reviews">App reviews</Link>}{(isAdmin || isSupervisor) && <Link className={nav('report-reviews')} to="/reports/reviews">Report reviews</Link>}</nav>
-      <div className="header-actions"><DiscordAccount /><Button className="admin-button" variant="ghost" onClick={() => setEditor(true)}><LockKeyhole />{user ? (role.data ? 'Control room' : 'Account') : 'Admin'}</Button></div>
+      <div className="header-actions"><DiscordAccount /><Button className="admin-button" variant="ghost" onClick={() => setEditor(true)}><LockKeyhole />{role.data || access.data?.staff ? 'Control room' : user ? 'Account' : 'Admin'}</Button></div>
     </div></header>
     <main>{children}</main>
     <footer className="apex-footer site-width"><Link className="brand" to="/">{brand}</Link><span className="footer-copy">© {new Date().getFullYear()} {settings.name}. {settings.footer_text}</span><nav className="footer-links" aria-label="Site information"><Link to="/rules">Rules</Link><Link to="/terms">Terms</Link><Link to="/privacy">Privacy</Link></nav></footer>

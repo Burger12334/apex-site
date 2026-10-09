@@ -22,6 +22,9 @@ import { Route as ReportsReviewsRouteImport } from './routes/reports_.reviews'
 import { Route as ApiPublicDiscordCallbackRouteImport } from './routes/api/public/discord/callback'
 import { Route as ApiPublicDiscordLoginRouteImport } from './routes/api/public/discord/login'
 import { Route as ApiPublicDiscordLogoutRouteImport } from './routes/api/public/discord/logout'
+import { Route as ApiPublicGoogleCallbackRouteImport } from './routes/api/public/google/callback'
+import { Route as ApiPublicGoogleLoginRouteImport } from './routes/api/public/google/login'
+import { Route as ApiPublicGoogleLogoutRouteImport } from './routes/api/public/google/logout'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -89,6 +92,21 @@ const ApiPublicDiscordLogoutRoute = ApiPublicDiscordLogoutRouteImport.update({
   path: '/api/public/discord/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGoogleCallbackRoute = ApiPublicGoogleCallbackRouteImport.update({
+  id: '/api/public/google/callback',
+  path: '/api/public/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGoogleLoginRoute = ApiPublicGoogleLoginRouteImport.update({
+  id: '/api/public/google/login',
+  path: '/api/public/google/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicGoogleLogoutRoute = ApiPublicGoogleLogoutRouteImport.update({
+  id: '/api/public/google/logout',
+  path: '/api/public/google/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,6 +122,9 @@ export interface FileRoutesByFullPath {
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
+  '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
+  '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,6 +140,9 @@ export interface FileRoutesByTo {
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
+  '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
+  '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -135,6 +159,9 @@ export interface FileRoutesById {
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
+  '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
+  '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -152,6 +179,9 @@ export interface FileRouteTypes {
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
+    | '/api/public/google/callback'
+    | '/api/public/google/login'
+    | '/api/public/google/logout'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -167,6 +197,9 @@ export interface FileRouteTypes {
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
+    | '/api/public/google/callback'
+    | '/api/public/google/login'
+    | '/api/public/google/logout'
   id:
     | '__root__'
     | '/'
@@ -182,6 +215,9 @@ export interface FileRouteTypes {
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
+    | '/api/public/google/callback'
+    | '/api/public/google/login'
+    | '/api/public/google/logout'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -198,6 +234,9 @@ export interface RootRouteChildren {
   ApiPublicDiscordCallbackRoute: typeof ApiPublicDiscordCallbackRoute
   ApiPublicDiscordLoginRoute: typeof ApiPublicDiscordLoginRoute
   ApiPublicDiscordLogoutRoute: typeof ApiPublicDiscordLogoutRoute
+  ApiPublicGoogleCallbackRoute: typeof ApiPublicGoogleCallbackRoute
+  ApiPublicGoogleLoginRoute: typeof ApiPublicGoogleLoginRoute
+  ApiPublicGoogleLogoutRoute: typeof ApiPublicGoogleLogoutRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -293,6 +332,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicDiscordLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google/callback': {
+      id: '/api/public/google/callback'
+      path: '/api/public/google/callback'
+      fullPath: '/api/public/google/callback'
+      preLoaderRoute: typeof ApiPublicGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/google/login': {
+      id: '/api/public/google/login'
+      path: '/api/public/google/login'
+      fullPath: '/api/public/google/login'
+      preLoaderRoute: typeof ApiPublicGoogleLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/google/logout': {
+      id: '/api/public/google/logout'
+      path: '/api/public/google/logout'
+      fullPath: '/api/public/google/logout'
+      preLoaderRoute: typeof ApiPublicGoogleLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -310,6 +370,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicDiscordCallbackRoute: ApiPublicDiscordCallbackRoute,
   ApiPublicDiscordLoginRoute: ApiPublicDiscordLoginRoute,
   ApiPublicDiscordLogoutRoute: ApiPublicDiscordLogoutRoute,
+  ApiPublicGoogleCallbackRoute: ApiPublicGoogleCallbackRoute,
+  ApiPublicGoogleLoginRoute: ApiPublicGoogleLoginRoute,
+  ApiPublicGoogleLogoutRoute: ApiPublicGoogleLogoutRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
