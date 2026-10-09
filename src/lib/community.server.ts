@@ -28,21 +28,18 @@ export async function findDiscordUser(id: string) {
     return { id: user.id, username: user.username, display_name: user.global_name ?? user.username, avatar_url: avatarUrl(user) };
   } catch (e) { if (e instanceof Error && /\[404\]/.test(e.message)) return null; throw e; }
 }
-// The Discord server whose roles are shown. Live: the server ID saved in the Discord settings.
-// Local test mode: the server ID saved in the local Discord settings, or the first server the bot is in if none is saved.
-let localGuild: string | undefined;
+// The Discord server members and roles are read from: the server ID saved in the Discord settings, or the
+// Apex server when none is saved. DISCORD_GUILD_ID overrides the built-in default.
+const APEX_GUILD = '1507797674668326973';
 export async function roleGuild() {
   const { localMode } = await import('./local-store.server');
   if (localMode()) {
     const { readLocalDiscord } = await import('./local-store.server');
-    const saved = (await readLocalDiscord()).guild_id;
-    if (saved) return saved;
-    if (localGuild === undefined) localGuild = (await discordFetch('users/@me/guilds') as { id: string }[])[0]?.id ?? '';
-    return localGuild;
+    return (await readLocalDiscord()).guild_id || process.env['DISCORD_GUILD_ID'] || APEX_GUILD;
   }
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
   const { data: settings } = await supabaseAdmin.from('discord_settings').select('guild_id').eq('id', 'main').maybeSingle();
-  return settings?.guild_id ?? '';
+  return settings?.guild_id || process.env['DISCORD_GUILD_ID'] || APEX_GUILD;
 }
 // A member's highest role in the Discord server, with the colour and icon Discord shows for it.
 // Roles and memberships are cached for five minutes so pages do not query Discord on every view.
