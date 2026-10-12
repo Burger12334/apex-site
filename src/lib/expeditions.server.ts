@@ -122,6 +122,12 @@ export type EventPerson = { id: string; username: string; avatar_url: string };
 export type EventDetails = { guide_members: EventPerson[]; sherpa_members: EventPerson[]; servers: { url: string }[] };
 export type DiscordEvent = { id: string; name: string; description: string; starts_at: string; live: boolean; interested: number; image_url: string; url: string; location: string; attendees: EventPerson[] } & EventDetails;
 const noDetails = (): EventDetails => ({ guide_members: [], sherpa_members: [], servers: [] });
+// What staff saved on the site wins; anything they left empty is filled from the Discord announcement.
+async function mergedDetails(guild: string, id: string, saved: EventDetails | undefined): Promise<EventDetails> {
+  const auto = await (await import('./announcements.server')).detailsFromAnnouncement(guild, id) ?? noDetails();
+  const pick = <T,>(mine: T[] | undefined, theirs: T[]) => mine?.length ? mine : theirs;
+  return { guide_members: pick(saved?.guide_members, auto.guide_members), sherpa_members: pick(saved?.sherpa_members, auto.sherpa_members), servers: pick(saved?.servers, auto.servers) };
+}
 export async function readEventDetails() { return (await import('./storage.server')).readJson<Record<string, EventDetails>>('event-details.json', {}); }
 export async function saveEventDetails(id: string, details: EventDetails) {
   const all = await readEventDetails(); all[id] = details;
@@ -153,7 +159,7 @@ export async function listDiscordEvents(): Promise<DiscordEvent[]> {
         const users = await discordFetch(`guilds/${guild}/scheduled-events/${e.id}/users?limit=100&with_member=true`) as { user: { id: string; username: string; global_name?: string | null; avatar: string | null }; member?: { nick?: string | null } }[];
         attendees = users.map(u => ({ id: u.user.id, username: u.member?.nick || u.user.global_name || u.user.username, avatar_url: avatarUrl(u.user) }));
       } catch { /* the count still shows */ }
-      events.push({ id: e.id, name: e.name, description: e.description ?? '', starts_at: e.scheduled_start_time, live: e.status === 2, interested: e.user_count ?? attendees.length, image_url: e.image ? `https://cdn.discordapp.com/guild-events/${e.id}/${e.image}.png?size=512` : '', url: `https://discord.com/events/${guild}/${e.id}`, location: e.entity_metadata?.location ?? '', attendees, ...noDetails(), ...details[e.id] });
+      events.push({ id: e.id, name: e.name, description: e.description ?? '', starts_at: e.scheduled_start_time, live: e.status === 2, interested: e.user_count ?? attendees.length, image_url: e.image ? `https://cdn.discordapp.com/guild-events/${e.id}/${e.image}.png?size=512` : '', url: `https://discord.com/events/${guild}/${e.id}`, location: e.entity_metadata?.location ?? '', attendees, ...await mergedDetails(guild, e.id, details[e.id]) });
     }
     events.sort((a, b) => Number(b.live) - Number(a.live) || a.starts_at.localeCompare(b.starts_at));
     eventCache = { at: Date.now(), events };
