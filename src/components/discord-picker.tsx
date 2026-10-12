@@ -9,9 +9,9 @@ export type PickedPerson = { id: string; username: string; avatar_url: string };
 // A box that takes Discord user IDs and fills in the person: paste an ID and their name and picture appear.
 // Plain names are accepted too (press Enter), for people without a Discord ID to hand.
 // The chosen people are submitted with the form as JSON under `name`; with `single` it holds one person.
-export function DiscordPicker({ name, placeholder, single = false, required = false }: { name: string; placeholder?: string; single?: boolean; required?: boolean }) {
+export function DiscordPicker({ name, placeholder, single = false, required = false, initial = [] }: { name: string; placeholder?: string; single?: boolean; required?: boolean; initial?: PickedPerson[] }) {
   const lookup = useServerFn(discordPerson);
-  const [people, setPeople] = useState<PickedPerson[]>([]);
+  const [people, setPeople] = useState<PickedPerson[]>(initial);
   const [text, setText] = useState(''); const [note, setNote] = useState(''); const [busy, setBusy] = useState(false);
   const add = (p: PickedPerson) => setPeople(list => single ? [p] : list.some(x => (p.id && x.id === p.id) || (!p.id && x.username === p.username)) ? list : [...list, p]);
 

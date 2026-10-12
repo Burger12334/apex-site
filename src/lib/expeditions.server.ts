@@ -117,20 +117,48 @@ export async function announceLocally(expedition: Expedition, origin: string, ki
 
 // The Discord server's own scheduled events (the ones made with "Create Event"), shown on the Expeditions page
 // when that option is on. Read with the bot; kept for a minute so page loads do not hammer Discord.
-export type DiscordEvent = { id: string; name: string; description: string; starts_at: string; live: boolean; interested: number; image_url: string; url: string; location: string };
+export type EventPerson = { id: string; username: string; avatar_url: string };
+// What staff add to a Discord event on the site, since Discord has no place for it.
+export type EventDetails = { guide_members: EventPerson[]; sherpa_members: EventPerson[]; servers: { url: string }[] };
+export type DiscordEvent = { id: string; name: string; description: string; starts_at: string; live: boolean; interested: number; image_url: string; url: string; location: string; attendees: EventPerson[] } & EventDetails;
+const noDetails = (): EventDetails => ({ guide_members: [], sherpa_members: [], servers: [] });
+export async function readEventDetails() { return (await import('./storage.server')).readJson<Record<string, EventDetails>>('event-details.json', {}); }
+export async function saveEventDetails(id: string, details: EventDetails) {
+  const all = await readEventDetails(); all[id] = details;
+  await (await import('./storage.server')).writeJson('event-details.json', all);
+  // The copy in memory is updated in place, so the change shows without asking Discord again.
+  const cached = eventCache?.events.find(e => e.id === id); if (cached) Object.assign(cached, details);
+}
 let eventCache: { at: number; events: DiscordEvent[] } | undefined;
+let eventFailedAt = 0; let eventPending: Promise<DiscordEvent[]> | undefined;
 export async function listDiscordEvents(): Promise<DiscordEvent[]> {
   const { localMode, readLocalDiscord } = await import('./local-store.server');
   if (!localMode() || !(await readLocalDiscord()).discord_events) return [];
-  if (eventCache && Date.now() - eventCache.at < 60000) return eventCache.events;
+  if (eventCache && Date.now() - eventCache.at < 120000) return eventCache.events;
+  // Discord limits this lookup tightly: after a refusal the last good copy is shown for half a minute before
+  // asking again, and page loads that arrive together share one request.
+  if (Date.now() - eventFailedAt < 30000) return eventCache?.events ?? [];
+  if (eventPending) return eventPending;
+  eventPending = (async () => {
   try {
-    const { discordFetch, roleGuild } = await import('./community.server');
-    const guild = await roleGuild();
+    const { discordFetch, roleGuild, avatarUrl } = await import('./community.server');
+    const guild = await roleGuild(); const details = await readEventDetails();
     const raw = await discordFetch(`guilds/${guild}/scheduled-events?with_user_count=true`) as { id: string; name: string; description?: string | null; scheduled_start_time: string; status: number; user_count?: number; image?: string | null; entity_metadata?: { location?: string } | null }[];
     // Status 1 is scheduled and 2 is live; finished and cancelled events are left out.
-    const events = raw.filter(e => e.status === 1 || e.status === 2).map(e => ({ id: e.id, name: e.name, description: e.description ?? '', starts_at: e.scheduled_start_time, live: e.status === 2, interested: e.user_count ?? 0, image_url: e.image ? `https://cdn.discordapp.com/guild-events/${e.id}/${e.image}.png?size=512` : '', url: `https://discord.com/events/${guild}/${e.id}`, location: e.entity_metadata?.location ?? '' }))
-      .sort((a, b) => Number(b.live) - Number(a.live) || a.starts_at.localeCompare(b.starts_at));
+    const events: DiscordEvent[] = [];
+    for (const e of raw.filter(e => e.status === 1 || e.status === 2)) {
+      // Everyone who pressed "Interested" on the event in Discord (the first hundred).
+      let attendees: EventPerson[] = [];
+      try {
+        const users = await discordFetch(`guilds/${guild}/scheduled-events/${e.id}/users?limit=100&with_member=true`) as { user: { id: string; username: string; global_name?: string | null; avatar: string | null }; member?: { nick?: string | null } }[];
+        attendees = users.map(u => ({ id: u.user.id, username: u.member?.nick || u.user.global_name || u.user.username, avatar_url: avatarUrl(u.user) }));
+      } catch { /* the count still shows */ }
+      events.push({ id: e.id, name: e.name, description: e.description ?? '', starts_at: e.scheduled_start_time, live: e.status === 2, interested: e.user_count ?? attendees.length, image_url: e.image ? `https://cdn.discordapp.com/guild-events/${e.id}/${e.image}.png?size=512` : '', url: `https://discord.com/events/${guild}/${e.id}`, location: e.entity_metadata?.location ?? '', attendees, ...noDetails(), ...details[e.id] });
+    }
+    events.sort((a, b) => Number(b.live) - Number(a.live) || a.starts_at.localeCompare(b.starts_at));
     eventCache = { at: Date.now(), events };
     return events;
-  } catch { return eventCache?.events ?? []; }
+  } catch { eventFailedAt = Date.now(); return eventCache?.events ?? []; } finally { eventPending = undefined; }
+  })();
+  return eventPending;
 }

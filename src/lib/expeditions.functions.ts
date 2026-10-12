@@ -85,6 +85,33 @@ export const announceExpeditionStart = createServerFn({ method: 'POST' }).inputV
   await logEvent({ title: 'Expedition start announced', color: LOG_COLORS.good, lines: [`**Expedition** ${expedition.title}`, `**Announcement** ${announced}`], by: await actorName() });
   return { announced };
 });
+// Own storage: staff add guides, sherpas and Roblox server links to an event that was made in Discord.
+const eventDetails = z.object({ id: z.string().regex(/^\d{17,20}$/), guide_members: z.array(person).max(20), sherpa_members: z.array(person).max(20), servers: z.array(z.object({ url: z.string().trim().regex(/^https:\/\/(www\.)?roblox\.com\/\S+$/, 'Server links must be roblox.com links') })).max(8) });
+export const saveDiscordEventDetails = createServerFn({ method: 'POST' }).inputValidator((d) => eventDetails.parse(d)).handler(async ({ data: { id, ...details } }) => {
+  const { localMode } = await import('./local-store.server');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
+  const { saveEventDetails, listDiscordEvents } = await import('./expeditions.server');
+  const event = (await listDiscordEvents()).find(e => e.id === id);
+  await saveEventDetails(id, details);
+  const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Discord event details updated', color: LOG_COLORS.edit, lines: [`**Event** ${event?.name ?? id}`, `**Guides** ${details.guide_members.length}`, `**Sherpas** ${details.sherpa_members.length}`, `**Servers** ${details.servers.length}`], by: await actorName() });
+});
+// Own storage: the "Starting Now!" post for an event that was made in Discord.
+export const announceDiscordEventStart = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().regex(/^\d{17,20}$/).parse(d)).handler(async ({ data }) => {
+  const { localMode } = await import('./local-store.server');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
+  const { announceLocally, listDiscordEvents } = await import('./expeditions.server'); const { currentOrigin } = await import('./discord.server');
+  const event = (await listDiscordEvents()).find(e => e.id === data);
+  if (!event) throw new Error('That Discord event is no longer listed.');
+  const expedition: Expedition = { id: event.id, title: event.name, description: event.description, starts_at: event.starts_at, leader: '', max_spots: 0, created_at: '', servers: event.servers, event_url: event.url };
+  let announced = 'not set up';
+  try { announced = await announceLocally(expedition, currentOrigin(), 'starting') ? 'sent' : 'not set up'; } catch (e) { announced = `failed: ${e instanceof Error ? e.message.slice(0, 160) : 'unknown error'}`; }
+  const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Expedition start announced', color: LOG_COLORS.good, lines: [`**Discord event** ${event.name}`, `**Announcement** ${announced}`], by: await actorName() });
+  return { announced };
+});
 export const deleteLocalExpedition = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
   if (!localMode()) throw new Error('Not available while the site is connected to the database.');

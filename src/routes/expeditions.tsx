@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CalendarDays, Check, Crown, Megaphone, Medal, Mountain, Plus, Trash2, Trophy, Users } from 'lucide-react';
+import { CalendarDays, Check, Crown, Megaphone, Pencil, Medal, Mountain, Plus, Trash2, Trophy, Users } from 'lucide-react';
 import { useSuspenseQuery } from '@tanstack/react-query';
 import { Logo } from '@/components/apex-editor';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { DiscordAvatar } from '@/components/community';
 import { HeroBackdrop } from '@/components/hero-slides';
 import { DiscordPicker, readPicked } from '@/components/discord-picker';
 import { lookupDiscord } from '@/lib/community.functions';
-import { announceExpedition, announceExpeditionStart, deleteLocalClimber, deleteLocalExpedition, getExpeditions, getHallOfFame, saveLocalClimber, saveLocalExpedition, toggleExpeditionSignup, type ExpeditionView } from '@/lib/expeditions.functions';
+import { announceDiscordEventStart, announceExpedition, announceExpeditionStart, saveDiscordEventDetails, deleteLocalClimber, deleteLocalExpedition, getExpeditions, getHallOfFame, saveLocalClimber, saveLocalExpedition, toggleExpeditionSignup, type ExpeditionView } from '@/lib/expeditions.functions';
 
 export const Route = createFileRoute('/expeditions')({
   head: () => ({ meta: [{ title: 'Expeditions — Apex' }, { name: 'description', content: 'Upcoming Apex climbs you can sign up for, and the hall of fame.' }, { property: 'og:title', content: 'Expeditions — Apex' }, { property: 'og:description', content: 'Upcoming Apex climbs you can sign up for, and the hall of fame.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary' }] }),
@@ -33,10 +33,13 @@ function Expeditions() {
   const [notice, setNotice] = useState('');
   const load = useServerFn(getExpeditions); const toggle = useServerFn(toggleExpeditionSignup);
   const { data: apex } = useSuspenseQuery(apexQuery); const startNow = useServerFn(announceExpeditionStart);
+  const saveDetails = useServerFn(saveDiscordEventDetails); const startEvent = useServerFn(announceDiscordEventStart);
+  const [editing, setEditing] = useState<string | null>(null);
   const createLocal = useServerFn(saveLocalExpedition); const removeLocal = useServerFn(deleteLocalExpedition); const announce = useServerFn(announceExpedition);
   const list = useQuery({ queryKey: ['expeditions', me.data?.id ?? 'guest'], refetchInterval: 60000, queryFn: () => load() });
   const isLocal = list.data?.local ?? false;
   const events = list.data?.events ?? [];
+  const editingEvent = events.find(ev => ev.id === editing);
   const [creating, setCreating] = useState(false); const [busy, setBusy] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ['expeditions'] });
 
@@ -62,6 +65,12 @@ function Expeditions() {
 
   // The top line of a card: "Live Now" in green once it has started, otherwise the date and time.
   const when = (iso: string, live: boolean) => <span className={`event-when ${live ? 'live' : ''}`}><CalendarDays />{live ? 'Live Now' : new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>;
+  const crew = (people: { id: string; username: string; avatar_url: string }[]) => <span className="crew-people">{people.map(p => <span key={p.id || p.username}>{p.avatar_url && <img src={p.avatar_url} alt="" loading="lazy" />}{p.username}</span>)}</span>;
+  async function saveEvent(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const f = new FormData(e.currentTarget); if (!editing) return;
+    const servers = String(f.get('servers') ?? '').split(/\s+/).map(url => url.trim()).filter(Boolean).map(url => ({ url }));
+    if (await act(() => saveDetails({ data: { id: editing, guide_members: readPicked(f.get('guides')), sherpa_members: readPicked(f.get('sherpas')), servers } }), 'Event details saved.')) setEditing(null);
+  }
   const host = (line: string) => <span className="event-host"><span className="event-logo">{apex.settings.logo_url ? <Logo path={apex.settings.logo_url} alt="" /> : <Mountain />}</span><span><strong>{apex.settings.name}</strong><small>{line}</small></span></span>;
 
   return <ApplyShell active="expeditions" notice={notice} onNotice={setNotice}>
@@ -80,14 +89,21 @@ function Expeditions() {
             {ev.image_url && <img className="event-cover" src={ev.image_url} alt="" loading="lazy" />}
             <h3>{ev.name}</h3>
             {ev.description && <p className="event-desc">{ev.description}</p>}
+            {ev.servers.length > 0 && <ul className="event-servers">{ev.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong></span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
+            {(ev.guide_members.length > 0 || ev.sherpa_members.length > 0) && <dl className="event-crew">{([['Guides', ev.guide_members], ['Sherpas', ev.sherpa_members]] as const).map(([label, people]) => people.length ? <div key={label}><dt>{label}</dt><dd>{crew(people)}</dd></div> : null)}</dl>}
+            {ev.attendees.length > 0 && <dl className="event-crew attending"><div><dt>Attending · {ev.interested}</dt><dd>{crew(ev.attendees)}{ev.interested > ev.attendees.length && <span className="crew-more">and {ev.interested - ev.attendees.length} more</span>}</dd></div></dl>}
             <footer className="event-foot">{host(ev.location || 'Discord event')}<a className="event-join" href={ev.url} target="_blank" rel="noreferrer">Join</a></footer>
+            {isAdmin && isLocal && <div className="event-staff">
+              <button disabled={busy} onClick={() => { if (confirm(`Post "${ev.name} Starting Now!" to Discord?`)) void act(async () => { const r = await startEvent({ data: ev.id }); if (r.announced !== 'sent') throw new Error(`The announcement was not posted: ${r.announced}.`); }, 'Posted to Discord.'); }}><Megaphone />Announce: starting now</button>
+              <button onClick={() => setEditing(ev.id)}><Pencil />Edit details</button>
+            </div>}
           </article>)}
           {(list.data?.expeditions ?? []).map(ex => { const started = new Date(ex.starts_at).getTime() <= Date.now(); return <article key={ex.id} className={`event-card ${started ? 'live' : ''} ${ex.joined ? 'joined' : ''}`}>
             <header className="event-top">{when(ex.starts_at, started)}<span className="event-count" title="Signed up"><Users />{ex.climbers.length}{ex.max_spots > 0 ? ` / ${ex.max_spots}` : ''}</span></header>
             <h3>{ex.title}</h3>
             {ex.description && <p className="event-desc">{ex.description}</p>}
             {!!ex.servers?.length && <ul className="event-servers">{ex.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong></span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
-            {(ex.guides || ex.sherpas) && <dl className="event-crew">{([['Guides', ex.guides, ex.guide_members], ['Sherpas', ex.sherpas, ex.sherpa_members]] as const).map(([label, text, people]) => text ? <div key={label}><dt>{label}</dt><dd>{people?.length ? <span className="crew-people">{people.map(p => <span key={p.id || p.username}>{p.avatar_url && <img src={p.avatar_url} alt="" loading="lazy" />}{p.username}</span>)}</span> : text}</dd></div> : null)}</dl>}
+            {(ex.guides || ex.sherpas) && <dl className="event-crew">{([['Guides', ex.guides, ex.guide_members], ['Sherpas', ex.sherpas, ex.sherpa_members]] as const).map(([label, text, people]) => text ? <div key={label}><dt>{label}</dt><dd>{people?.length ? crew(people) : text}</dd></div> : null)}</dl>}
             {ex.climbers.length > 0 && <p className="event-climbers">{ex.climbers.map(name => <span key={name}>@{name}</span>)}</p>}
             <footer className="event-foot">{host(!ex.guides && !ex.sherpas && ex.leader ? `Led by ${ex.leader}` : 'Expedition')}
               <div className="event-buttons">
@@ -105,6 +121,14 @@ function Expeditions() {
         </div>}
     </section>
     <HallOfFame isLocal={isLocal} isAdmin={isAdmin} onNotice={setNotice} />
+    {isAdmin && <Dialog open={!!editingEvent} onOpenChange={o => { if (!o) setEditing(null); }}><DialogContent className="editor-dialog"><DialogTitle className="panel-title">{editingEvent?.name ?? 'Discord event'}</DialogTitle><DialogDescription>This event comes from Discord, so its name, time and description are changed there. Add who is running it and the Roblox servers here.</DialogDescription>
+      {editingEvent && <form className="editor-form" onSubmit={saveEvent}>
+        <div className="picker-field"><span>Guides</span><DiscordPicker name="guides" initial={editingEvent.guide_members} placeholder="Paste a Discord ID, or type a name and press Enter" /></div>
+        <div className="picker-field"><span>Sherpas</span><DiscordPicker name="sherpas" initial={editingEvent.sherpa_members} placeholder="Paste a Discord ID, or type a name and press Enter" /></div>
+        <label>Roblox servers<textarea name="servers" rows={3} defaultValue={editingEvent.servers.map(s => s.url).join('\n')} placeholder={'One Roblox server link per line\nhttps://www.roblox.com/share?code=...&type=Server'} /></label>
+        <Button disabled={busy}><Check />{busy ? 'Saving…' : 'Save details'}</Button>
+      </form>}
+    </DialogContent></Dialog>}
     {isAdmin && <Dialog open={creating} onOpenChange={setCreating}><DialogContent className="editor-dialog"><DialogTitle className="panel-title">New expedition</DialogTitle><DialogDescription>It appears on this page straight away and is announced on Discord if an expeditions channel is set.</DialogDescription>
       <form className="editor-form" onSubmit={create}>
         <label>Name<input name="title" required maxLength={120} placeholder="Summit push from Camp II" /></label>
