@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { useEffect, useMemo, useState } from 'react';
-import { Check, X, RotateCcw, Search, Inbox, BellOff, BellRing, ArrowDown } from 'lucide-react';
+import { Check, X, RotateCcw, Search, Inbox, BellOff, BellRing, ArrowDown, MessagesSquare } from 'lucide-react';
 import { DiscordAvatar } from '@/components/community';
 import { ReportChat } from '@/components/report-chat';
 import { HeroBackdrop } from '@/components/hero-slides';
@@ -32,8 +32,18 @@ function ReportReviews() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('open');
   const [q, setQ] = useState(''); const [sel, setSel] = useState<string | null>(null); const [notice, setNotice] = useState('');
   // Proof links are signed for five minutes, so the list is refreshed before they expire.
-  const reports = useQuery({ queryKey: ['reports', isSupervisor ? 'supervisor' : 'editor'], enabled: allowed, refetchInterval: 240000, queryFn: () => (isSupervisor ? asSupervisor() : asEditor()) as Promise<Report[]> });
-  const list = useMemo(() => (reports.data ?? []).filter(r => (filter === 'all' || r.status === filter) && `${r.reported_name} ${r.reported_discord_id} ${r.reporter_username}`.toLowerCase().includes(q.toLowerCase())), [reports.data, filter, q]);
+  const reports = useQuery({ queryKey: ['reports', isSupervisor ? 'supervisor' : 'editor'], enabled: allowed, refetchInterval: 20000, queryFn: () => (isSupervisor ? asSupervisor() : asEditor()) as Promise<Report[]> });
+  // A reporter's chat reply counts as new until this reviewer opens the report; what was seen is remembered in the browser.
+  const [seen, setSeen] = useState<Record<string, string>>({});
+  useEffect(() => { try { setSeen(JSON.parse(localStorage.getItem('apex-report-replies-seen') ?? '{}') as Record<string, string>); } catch { /* nothing remembered */ } }, []);
+  const isNew = (r: Report) => !!r.waiting_reply_at && r.waiting_reply_at > (seen[r.id] ?? '');
+  const newReplies = (reports.data ?? []).filter(isNew).length;
+  const openWaiting = sel ? (reports.data ?? []).find(r => r.id === sel)?.waiting_reply_at ?? '' : '';
+  useEffect(() => {
+    if (!sel || !openWaiting) return;
+    setSeen(s => { if ((s[sel] ?? '') >= openWaiting) return s; const next = { ...s, [sel]: openWaiting }; try { localStorage.setItem('apex-report-replies-seen', JSON.stringify(next)); } catch { /* not saved */ } return next; });
+  }, [sel, openWaiting]);
+  const list = useMemo(() => (reports.data ?? []).filter(r => (filter === 'all' || r.status === filter) && `${r.reported_name} ${r.reported_discord_id} ${r.reporter_username}`.toLowerCase().includes(q.toLowerCase())).sort((a, b) => Number(isNew(b)) - Number(isNew(a))), [reports.data, filter, q, seen]);
   // The open report is looked up in the full list so its panel stays open when a decision moves it to another tab.
   const current = (reports.data ?? []).find(r => r.id === sel);
   const count = (f: string) => (reports.data ?? []).filter(r => f === 'all' || r.status === f).length;
@@ -54,13 +64,13 @@ function ReportReviews() {
   return <ApplyShell active="report-reviews" notice={notice} onNotice={setNotice}>
     <section className="page-hero page-banner banner-slim"><HeroBackdrop /><div className="site-width page-hero-inner"><div className="eyebrow"><span className="line" />SUPERVISION</div><h1 className="apply-title">Review reports</h1><p className="apply-lede">Open a card to see the proof and chat with the reporter, then resolve or dismiss.</p></div></section>
     <section className="site-width apply-page">
-      <div className="section-header"><div><div className="eyebrow">QUEUE</div><h2>Reports</h2></div><div className="search-box"><Search /><input placeholder="Search name or Discord ID" value={q} onChange={e => setQ(e.target.value)} /></div></div>
+      <div className="section-header"><div><div className="eyebrow">QUEUE</div><h2>Reports</h2>{newReplies > 0 && <p className="reply-summary"><MessagesSquare />{newReplies === 1 ? '1 report has a new reply from the reporter.' : `${newReplies} reports have a new reply from the reporter.`}</p>}</div><div className="search-box"><Search /><input placeholder="Search name or Discord ID" value={q} onChange={e => setQ(e.target.value)} /></div></div>
       <div className="filter-tabs review-filters">{FILTERS.map(f => <Button key={f} variant={filter === f ? 'secondary' : 'ghost'} onClick={() => { setFilter(f); setSel(null); }}>{f.charAt(0).toUpperCase() + f.slice(1)} <span className="tab-count">{count(f)}</span></Button>)}</div>
       {reports.isLoading ? <div className="apply-card review-empty"><p>Loading reports…</p></div>
         : reports.error ? <div className="apply-card review-empty"><p>{reports.error.message}</p></div>
         : list.length === 0 && !current ? <div className="apply-card review-empty"><Inbox /><p>No {filter === 'all' ? '' : filter} reports.</p></div>
         : <div className="review-board">
-          <ul className="review-grid">{list.map(r => <li key={r.id}><button className={`review-item ${current?.id === r.id ? 'active' : ''}`} onClick={() => { setSel(r.id); setReason(''); }}><DiscordAvatar user={{ avatar_url: r.reported_avatar_url, username: r.reported_name }} /><span className="review-item-body"><strong>{r.reported_name}</strong><small>by @{r.reporter_username} · {new Date(r.created_at).toLocaleDateString()}</small></span><span className={`sub-status ${r.status}`}>{r.status}</span><span className="review-snippet">{r.reason}</span></button></li>)}</ul>
+          <ul className="review-grid">{list.map(r => <li key={r.id}><button className={`review-item ${current?.id === r.id ? 'active' : ''}`} onClick={() => { setSel(r.id); setReason(''); }}><DiscordAvatar user={{ avatar_url: r.reported_avatar_url, username: r.reported_name }} /><span className="review-item-body"><strong>{r.reported_name}</strong><small>by @{r.reporter_username} · {new Date(r.created_at).toLocaleDateString()}</small></span>{isNew(r) ? <span className="reply-badge"><MessagesSquare />New reply</span> : r.waiting_reply_at ? <span className="reply-badge seen">Reporter replied</span> : null}<span className={`sub-status ${r.status}`}>{r.status}</span><span className="review-snippet">{r.reason}</span></button></li>)}</ul>
           <Dialog open={!!current} onOpenChange={o => { if (!o) setSel(null); }}><DialogContent className="editor-dialog review-panel"><DialogTitle className="panel-title">Report</DialogTitle><DialogDescription className="sr-only">Details, chat and decision for this report.</DialogDescription>{current && <article className="review-detail">
             <div className="review-detail-head report-head"><div className="report-parties">
               <div className="identity"><DiscordAvatar user={{ avatar_url: current.reporter_avatar_url, username: current.reporter_username }} large /><div><span className="party-label">Reported by</span><strong>@{current.reporter_username}</strong><small>Discord ID {current.reporter_discord_id}</small></div></div>

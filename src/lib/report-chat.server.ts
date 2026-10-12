@@ -51,6 +51,36 @@ export async function addReportMessage(row: ReportMessage) {
   if (error) throw new Error(error.message);
 }
 
+// For the review list: when the reporter last wrote without supervision having answered since, per report.
+export async function waitingReplies(): Promise<Record<string, string>> {
+  let rows: Pick<ReportMessage, 'report_id' | 'author_role' | 'created_at'>[];
+  if (await isLocal()) rows = await readLocal<ReportMessage>('report-messages.json');
+  else {
+    const { data, error } = await (await db()).from('report_messages').select('report_id,author_role,created_at').order('created_at');
+    if (error) return {};
+    rows = (data ?? []) as typeof rows;
+  }
+  const waiting: Record<string, string> = {};
+  for (const m of [...rows].sort((a, b) => a.created_at.localeCompare(b.created_at))) {
+    if (m.author_role === 'reporter') waiting[m.report_id] = m.created_at; else delete waiting[m.report_id];
+  }
+  return waiting;
+}
+
+// Tells supervision on Discord that the reporter wrote back, with a link straight to the report. No role pings.
+export async function alertReporterReply(report: ReportSummary, username: string, body: string, origin: string) {
+  const embed = { title: 'A reporter replied on their report', color: 0xf59e0b, description: [`**Reporter** <@${report.reporter_discord_id}> (${username})`, `**Report about** ${report.reported_name}`, `**Message** ${body.length > 500 ? `${body.slice(0, 500)}…` : body}`, `**[Open report](${origin}/reports/reviews?report=${report.id})**`].join('\n') };
+  try {
+    if (await isLocal()) { const { sendLocalAlert } = await import('./community.server'); return await sendLocalAlert('', [embed], []) ? 'sent' : 'not_configured'; }
+    const { data: config } = await (await db()).from('discord_settings').select('channel_id').eq('id', 'main').maybeSingle();
+    const channel = (config as { channel_id?: string } | null)?.channel_id;
+    if (!channel) return 'not_configured';
+    const { discordFetch } = await import('./community.server');
+    await discordFetch(`channels/${channel}/messages`, { embeds: [embed], allowed_mentions: { parse: [] } });
+    return 'sent';
+  } catch (e) { return `failed: ${(e instanceof Error ? e.message : 'unknown error').slice(0, 200)}`; }
+}
+
 // Who may use a report's chat: the person who sent it, or supervision. The page says which side it is
 // acting as, and that claim is checked here.
 export async function chatAccess(reportId: string, as: 'reporter' | 'supervision') {

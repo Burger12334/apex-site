@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 const snowflake = z.string().regex(/^\d{17,20}$/, 'Enter a valid Discord ID');
 export type DiscordRole = { name: string; color: string; icon_url: string; emoji: string };
 export type TeamMember = { id: string; discord_id: string; username: string; avatar_url: string; title: string; sort_order: number; role?: DiscordRole | null };
-export type Report = { id: string; reporter_username: string; reporter_discord_id: string; reported_name: string; reported_discord_id: string; reason: string; status: string; created_at: string; proof_url: string; notification_status: string; notification_error: string; reporter_avatar_url: string; reported_avatar_url: string; decision_reason?: string };
+export type Report = { id: string; reporter_username: string; reporter_discord_id: string; reported_name: string; reported_discord_id: string; reason: string; status: string; created_at: string; proof_url: string; notification_status: string; notification_error: string; reporter_avatar_url: string; reported_avatar_url: string; decision_reason?: string; waiting_reply_at?: string };
 // A report before profile pictures are resolved; only local test reports store the reporter's picture.
 export type ReportRow = Omit<Report, 'reporter_avatar_url' | 'reported_avatar_url'> & { reporter_avatar_url?: string };
 
@@ -84,12 +84,17 @@ export const submitReport = createServerFn({ method: 'POST' }).inputValidator((d
 
 export const supervisorReports = createServerFn({ method: 'GET' }).handler(async () => {
   const { supervisor, readReports } = await import('./community.server');
-  if (!await supervisor()) throw new Error('Supervision access required'); return readReports();
+  if (!await supervisor()) throw new Error('Supervision access required'); return withReplies(await readReports());
 });
 export const editorReports = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   const { data: role } = await context.supabase.rpc('apex_role'); if (!['owner', 'editor'].includes(role ?? '')) throw new Error('Editor access required');
-  const { readReports } = await import('./community.server'); return readReports();
+  const { readReports } = await import('./community.server'); return withReplies(await readReports());
 });
+// Marks each report whose reporter has written in the chat since supervision last answered.
+async function withReplies(reports: Report[]): Promise<Report[]> {
+  const waiting = await (await import('./report-chat.server')).waitingReplies();
+  return reports.map(r => ({ ...r, waiting_reply_at: waiting[r.id] ?? '' }));
+}
 const decision = z.object({ id: z.string().uuid(), status: z.enum(['open', 'resolved', 'dismissed']), reason: z.string().trim().max(1000).default('') });
 export const supervisorDecision = createServerFn({ method: 'POST' }).inputValidator((d) => decision.parse(d)).handler(async ({ data }) => {
   const { supervisor } = await import('./community.server'); const me = await supervisor(); if (!me) throw new Error('Supervision access required');

@@ -969,3 +969,10 @@ main:has(.focus-page) ~ .editor-bottom .editor-bottom-label { color: oklch(1 0 0
 .settings-inline button { border-radius: 999px; height: 40px; }
 .settings-card .editor-list > div { padding: 10px 0; }
 @media (max-width: 640px) { .settings-inline { grid-template-columns: 1fr; } }
+
+/* Report reviews: a reporter wrote back in the chat */
+.reply-badge{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.02em;white-space:nowrap;background:#f59e0b;color:#1c1300;box-shadow:0 0 0 3px rgba(245,158,11,.22)}
+.reply-badge svg{width:13px;height:13px}
+.reply-badge.seen{background:transparent;color:#f59e0b;border:1px solid rgba(245,158,11,.5);box-shadow:none;font-weight:600}
+.reply-summary{display:flex;align-items:center;gap:7px;margin:6px 0 0;color:#f59e0b;font-weight:600;font-size:14px}
+.reply-summary svg{width:16px;height:16px}

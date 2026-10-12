@@ -25,13 +25,15 @@ export const reportMessages = createServerFn({ method: 'GET' }).inputValidator((
 });
 
 export const sendReportMessage = createServerFn({ method: 'POST' }).inputValidator((d) => z.object({ id: z.string().uuid(), as: side, body: z.string().trim().min(1).max(2000) }).parse(d)).handler(async ({ data }): Promise<ReportMessage> => {
-  const { chatAccess, addReportMessage, dmReporter } = await import('./report-chat.server');
+  const { chatAccess, addReportMessage, dmReporter, alertReporterReply } = await import('./report-chat.server');
   const { me, report } = await chatAccess(data.id, data.as);
   const { currentOrigin } = await import('./discord.server');
   const row: ReportMessage = { id: crypto.randomUUID(), report_id: report.id, author_role: data.as, author_discord_id: me.id, author_username: me.username, body: data.body, dm_status: '', created_at: new Date().toISOString() };
   if (data.as === 'supervision') row.dm_status = await dmReporter(report, currentOrigin());
   await addReportMessage(row);
+  // Supervision is told on Discord when the reporter writes back.
+  const alert = data.as === 'reporter' ? await alertReporterReply(report, me.username, data.body, currentOrigin()) : '';
   const { logEvent, LOG_COLORS } = await import('./audit-log.server');
-  await logEvent({ title: data.as === 'supervision' ? 'Supervision replied on a report' : 'Reporter replied on a report', color: LOG_COLORS.info, lines: [`**Report about** ${report.reported_name}`, `**Message** ${data.body.length > 300 ? `${data.body.slice(0, 300)}…` : data.body}`, row.dm_status && `**DM reminder** ${row.dm_status}`, `**Report** ${report.id}`], by: `<@${me.id}> (${me.username})` });
+  await logEvent({ title: data.as === 'supervision' ? 'Supervision replied on a report' : 'Reporter replied on a report', color: LOG_COLORS.info, lines: [`**Report about** ${report.reported_name}`, `**Message** ${data.body.length > 300 ? `${data.body.slice(0, 300)}…` : data.body}`, row.dm_status && `**DM reminder** ${row.dm_status}`, alert && `**Alert to supervision** ${alert}`, `**Report** ${report.id}`], by: `<@${me.id}> (${me.username})` });
   return row;
 });
