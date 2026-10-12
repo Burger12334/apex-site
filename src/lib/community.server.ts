@@ -3,7 +3,7 @@ import type { DiscordRole, Report, ReportRow } from './community.functions';
 export function avatarUrl(user: { id: string; avatar: string | null }) {
   return user.avatar ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.${user.avatar.startsWith('a_') ? 'gif' : 'png'}?size=128` : `https://cdn.discordapp.com/embed/avatars/${Number((BigInt(user.id) >> 22n) % 6n)}.png`;
 }
-export async function discordFetch(path: string, body?: object, attempt = 0, method?: 'PUT' | 'DELETE'): Promise<unknown> {
+export async function discordFetch(path: string, body?: object, attempt = 0, method?: 'PUT' | 'DELETE' | 'PATCH'): Promise<unknown> {
   const key = process.env['DISCORD_API_KEY']; const auth = process.env['LOVABLE_API_KEY'];
   // Outside Lovable hosting there is no connector, so a bot token (DISCORD_BOT_TOKEN) is used directly if present.
   const bot = process.env['DISCORD_BOT_TOKEN'];

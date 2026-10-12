@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { logStaff } from '@/lib/staff-log';
-import { getTeam, lookupDiscord, getLocalDiscordConfig, saveLocalDiscordConfig, testLocalDiscord, testLocalLog, testLocalApplicationAlert, addLocalTeamMember, removeLocalTeamMember, updateLocalTeamMember, reorderLocalTeam, type DiscordRole, type TeamMember } from '@/lib/community.functions';
+import { getTeam, lookupDiscord, getLocalDiscordConfig, saveLocalDiscordConfig, testLocalDiscord, testLocalLog, testLocalApplicationAlert, addLocalTeamMember, removeLocalTeamMember, updateLocalTeamMember, reorderLocalTeam, type DiscordRole, type TeamMember, postSiteStatus } from '@/lib/community.functions';
 import { useApplyAccess, DiscordIcon } from '@/components/apply-shell';
 import { getForms } from '@/lib/apply.functions';
 
@@ -142,7 +142,7 @@ const roleList = (value: FormDataEntryValue | null) => String(value ?? '').split
 function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
   const forms = useQuery({ queryKey: ['forms'], queryFn: () => getForms() });
   const qc = useQueryClient(); const saveConfig = useServerFn(saveLocalDiscordConfig);
-  const sendTest = useServerFn(testLocalDiscord); const sendTestLog = useServerFn(testLocalLog); const sendTestApp = useServerFn(testLocalApplicationAlert);
+  const sendTest = useServerFn(testLocalDiscord); const sendStatus = useServerFn(postSiteStatus); const sendTestLog = useServerFn(testLocalLog); const sendTestApp = useServerFn(testLocalApplicationAlert);
   const [open, setOpen] = useState(false); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false);
   async function run(action: () => Promise<unknown>, ok: string) { setBusy(true); setMessage(''); try { await action(); setMessage(ok); } catch (e) { setMessage(e instanceof Error ? e.message : 'Something went wrong.'); } finally { setBusy(false); } }
   function save(e: FormEvent<HTMLFormElement>) {
@@ -167,6 +167,7 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
         <div className="settings-scroll">
           <SettingsCard icon={<Server />} tone="tone-blue" title="Server" text="The server whose roles show next to people's names. The Apex bot must be in it." ready={!!config.guild_id}>
             <label>Discord server ID<input name="guild" pattern="[0-9]{17,20}" defaultValue={config.guild_id} placeholder="e.g. 123456789012345678" /></label>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void run(() => sendStatus(), 'Site status card updated in #site-status.')}>Refresh the site status card</Button><small className="field-hint">Checks every page, the bot and what is waiting for staff, and updates the card in the staff server’s #site-status channel.</small>
           </SettingsCard>
           <SettingsCard icon={<BellRing />} tone="tone-orange" title="Notifications & pings" text="Every message the site sends to Discord. Switch each one on or off and choose who it pings." ready={!config.quiet}>
             <label className="settings-check notify-quiet"><input type="checkbox" name="quiet" defaultChecked={config.quiet} />Quiet mode: send everything, ping nobody<small className="field-hint">Turns off every role ping on the site, including the report and application roles below, until you untick it.</small></label>

@@ -157,6 +157,16 @@ export const saveLocalDiscordConfig = createServerFn({ method: 'POST' }).inputVa
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
   await logEvent({ title: 'Discord settings updated', color: LOG_COLORS.edit, lines: [`**Report roles** ${data.ping_role_ids.length}`, `**Reports webhook** ${data.webhook_url ? 'set' : 'not set'}`, `**Applications webhook** ${data.app_webhook_url ? 'set' : 'not set'}`, `**Log webhook** ${data.log_webhook_url ? 'set' : 'not set'}`], by: await actorName() });
 });
+// Staff: post (or refresh) the site status card in the staff Discord's #site-status channel.
+export const postSiteStatus = createServerFn({ method: 'POST' }).handler(async () => {
+  const { localMode } = await import('./local-store.server');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
+  const result = await (await import('./site-status.server')).postStatus(true);
+  const { logEvent, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Site status card ' + (result.updated ? 'refreshed' : 'posted'), lines: ['**Result** ' + result.state], by: await actorName() });
+  return result;
+});
 export const testLocalDiscord = createServerFn({ method: 'POST' }).handler(async () => {
   const { localMode } = await import('./local-store.server');
   if (!localMode()) throw new Error('Not available while the site is connected to the database.');
