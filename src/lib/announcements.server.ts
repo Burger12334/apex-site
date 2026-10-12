@@ -49,12 +49,16 @@ async function eventMessages(guild: string): Promise<RawMessage[]> {
 async function resolve(token: Token, mentions: Mention[], guild: string): Promise<EventPerson> {
   const { discordFetch, avatarUrl } = await import('./community.server');
   const mentioned = mentions.find(m => m.id === token.id);
-  if (mentioned) return { id: mentioned.id, username: mentioned.global_name || mentioned.username, avatar_url: avatarUrl(mentioned) };
   const key = token.id || `name:${token.name.toLowerCase()}`;
   if (!found.has(key)) {
     let person: EventPerson | null = null;
     try {
-      if (token.id) { const u = await discordFetch(`users/${token.id}`) as Mention; person = { id: u.id, username: u.global_name || u.username, avatar_url: avatarUrl(u) }; }
+      if (token.id) {
+        // Shown under the name they use in the server (their nickname) when they are still in it.
+        const member = await (discordFetch(`guilds/${guild}/members/${token.id}`) as Promise<{ user: Mention; nick?: string | null }>).catch(() => null);
+        const u = member?.user ?? mentioned ?? await discordFetch(`users/${token.id}`) as Mention;
+        person = { id: u.id, username: member?.nick || u.global_name || u.username, avatar_url: avatarUrl(u) };
+      }
       else {
         // A typed name: the server member whose username or nickname starts with it.
         const hits = await discordFetch(`guilds/${guild}/members/search?query=${encodeURIComponent(token.name)}&limit=5`) as { user: Mention; nick?: string | null }[];
