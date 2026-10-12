@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
 import { useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { CalendarDays, Check, Crown, Medal, Mountain, Plus, Trash2, Trophy, UserRound, Users } from 'lucide-react';
+import { CalendarDays, Check, Crown, Megaphone, Medal, Mountain, Plus, Trash2, Trophy, Users } from 'lucide-react';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { Logo } from '@/components/apex-editor';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +14,7 @@ import { ApplyShell, DiscordIcon, apexQuery, useApplyAccess } from '@/components
 import { DiscordAvatar } from '@/components/community';
 import { HeroBackdrop } from '@/components/hero-slides';
 import { lookupDiscord } from '@/lib/community.functions';
-import { announceExpedition, deleteLocalClimber, deleteLocalExpedition, getExpeditions, getHallOfFame, saveLocalClimber, saveLocalExpedition, toggleExpeditionSignup, type ExpeditionView } from '@/lib/expeditions.functions';
+import { announceExpedition, announceExpeditionStart, deleteLocalClimber, deleteLocalExpedition, getExpeditions, getHallOfFame, saveLocalClimber, saveLocalExpedition, toggleExpeditionSignup, type ExpeditionView } from '@/lib/expeditions.functions';
 
 export const Route = createFileRoute('/expeditions')({
   head: () => ({ meta: [{ title: 'Expeditions — Apex' }, { name: 'description', content: 'Upcoming Apex climbs you can sign up for, and the hall of fame.' }, { property: 'og:title', content: 'Expeditions — Apex' }, { property: 'og:description', content: 'Upcoming Apex climbs you can sign up for, and the hall of fame.' }, { property: 'og:type', content: 'website' }, { name: 'twitter:card', content: 'summary' }] }),
@@ -29,6 +31,7 @@ function Expeditions() {
   const qc = useQueryClient();
   const [notice, setNotice] = useState('');
   const load = useServerFn(getExpeditions); const toggle = useServerFn(toggleExpeditionSignup);
+  const { data: apex } = useSuspenseQuery(apexQuery); const startNow = useServerFn(announceExpeditionStart);
   const createLocal = useServerFn(saveLocalExpedition); const removeLocal = useServerFn(deleteLocalExpedition); const announce = useServerFn(announceExpedition);
   const list = useQuery({ queryKey: ['expeditions', me.data?.id ?? 'guest'], refetchInterval: 60000, queryFn: () => load() });
   const isLocal = list.data?.local ?? false;
@@ -43,14 +46,21 @@ function Expeditions() {
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget; const f = new FormData(form);
     const input = { title: String(f.get('title')).trim(), description: String(f.get('description')).trim(), starts_at: new Date(String(f.get('starts_at'))).toISOString(), leader: String(f.get('leader')).trim(), max_spots: Number(f.get('max_spots') || 0) };
+    // One server per line: the Roblox link first, then the host's name.
+    const servers = String(f.get('servers') ?? '').split('\n').map(line => line.trim()).filter(Boolean).map(line => { const [url = '', ...host] = line.split(/\s+/); return { url, host: host.join(' ') }; });
+    const event_url = String(f.get('event_url') ?? '').trim();
     let announced = '';
     const ok = await act(async () => {
-      if (isLocal) announced = (await createLocal({ data: input })).announced;
+      if (isLocal) announced = (await createLocal({ data: { ...input, servers, event_url } })).announced;
       else { const { data, error } = await tables.from('expeditions').insert(input).select('id').single(); if (error) throw error; announced = (await announce({ data: data.id as string })).announced; logStaff('Expedition created', [input.title, `Announcement: ${announced}`]); }
     }, 'Expedition created.');
     if (ok) { setNotice(`Expedition created. Discord announcement: ${announced}.`); form.reset(); setCreating(false); }
   }
   const remove = (ex: ExpeditionView) => { if (confirm(`Delete "${ex.title}" and its sign-ups?`)) void act(async () => { if (isLocal) await removeLocal({ data: ex.id }); else { const { error } = await tables.from('expeditions').delete().eq('id', ex.id); if (error) throw error; logStaff('Expedition deleted', [ex.title]); } }, 'Expedition deleted.'); };
+
+  // The top line of a card: "Live Now" in green once it has started, otherwise the date and time.
+  const when = (iso: string, live: boolean) => <span className={`event-when ${live ? 'live' : ''}`}><CalendarDays />{live ? 'Live Now' : new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>;
+  const host = (line: string) => <span className="event-host"><span className="event-logo">{apex.settings.logo_url ? <Logo path={apex.settings.logo_url} alt="" /> : <Mountain />}</span><span><strong>{apex.settings.name}</strong><small>{line}</small></span></span>;
 
   return <ApplyShell active="expeditions" notice={notice} onNotice={setNotice}>
     <section className="page-hero page-banner"><HeroBackdrop /><div className="site-width page-hero-inner">
@@ -62,31 +72,34 @@ function Expeditions() {
       <div className="section-header"><div><div className="eyebrow">UPCOMING</div><h2>Sign up for a climb.</h2><p>Times are shown in your own time zone.</p></div>{isAdmin && <Button onClick={() => setCreating(true)}><Plus />New expedition</Button>}</div>
       {list.isLoading ? <div className="apply-card review-empty"><p>Loading expeditions…</p></div>
         : !list.data?.expeditions.length && !events.length ? <div className="apply-card review-empty"><Mountain /><p>No expeditions are scheduled right now. Check back soon.</p></div>
-        : <div className="expedition-grid">{events.map(ev => { const at = new Date(ev.starts_at); return <article key={ev.id} className={`expedition-card discord-event ${ev.live ? 'live' : ''}`}>
-          <div className="expedition-date"><small>{at.toLocaleDateString([], { month: 'short' })}</small><strong>{at.getDate()}</strong><span>{at.toLocaleDateString([], { weekday: 'short' })}</span></div>
-          <div className="expedition-body">
-            <p className="event-tags">{ev.live ? <span className="event-live"><i />Live now</span> : <span className="event-source"><DiscordIcon />Discord event</span>}</p>
-            <h3>{ev.name}</h3>
-            <p className="expedition-meta"><span><CalendarDays />{at.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>{ev.location && <span><Mountain />{ev.location}</span>}<span><Users />{ev.interested} interested</span></p>
+        : <div className="event-grid">
+          {events.map(ev => <article key={ev.id} className={`event-card ${ev.live ? 'live' : ''}`}>
+            <header className="event-top">{when(ev.starts_at, ev.live)}<span className="event-count" title="Interested"><Users />{ev.interested}</span></header>
             {ev.image_url && <img className="event-cover" src={ev.image_url} alt="" loading="lazy" />}
-            {ev.description && <p className="expedition-text">{ev.description}</p>}
-            <div className="expedition-actions"><Button asChild><a href={ev.url} target="_blank" rel="noreferrer"><DiscordIcon />{ev.live ? 'Join on Discord' : 'Open in Discord'}</a></Button></div>
-          </div>
-        </article>; })}{(list.data?.expeditions ?? []).map(ex => { const at = new Date(ex.starts_at); return <article key={ex.id} className={`expedition-card ${ex.joined ? 'joined' : ''}`}>
-          <div className="expedition-date"><small>{at.toLocaleDateString([], { month: 'short' })}</small><strong>{at.getDate()}</strong><span>{at.toLocaleDateString([], { weekday: 'short' })}</span></div>
-          <div className="expedition-body">
+            <h3>{ev.name}</h3>
+            {ev.description && <p className="event-desc">{ev.description}</p>}
+            <footer className="event-foot">{host(ev.location || 'Discord event')}<a className="event-join" href={ev.url} target="_blank" rel="noreferrer">Join</a></footer>
+          </article>)}
+          {(list.data?.expeditions ?? []).map(ex => { const started = new Date(ex.starts_at).getTime() <= Date.now(); return <article key={ex.id} className={`event-card ${started ? 'live' : ''} ${ex.joined ? 'joined' : ''}`}>
+            <header className="event-top">{when(ex.starts_at, started)}<span className="event-count" title="Signed up"><Users />{ex.climbers.length}{ex.max_spots > 0 ? ` / ${ex.max_spots}` : ''}</span></header>
             <h3>{ex.title}</h3>
-            <p className="expedition-meta"><span><CalendarDays />{at.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>{ex.leader && <span><UserRound />Led by {ex.leader}</span>}<span><Users />{ex.climbers.length}{ex.max_spots > 0 ? ` / ${ex.max_spots}` : ''} signed up</span></p>
-            {ex.description && <p className="expedition-text">{ex.description}</p>}
-            {ex.climbers.length > 0 && <p className="expedition-climbers">{ex.climbers.map(name => <span key={name}>@{name}</span>)}</p>}
-            <div className="expedition-actions">
-              {!me.data ? <Button onClick={linkDiscord}><DiscordIcon />Link Discord to sign up</Button>
-                : ex.joined ? <><span className="expedition-joined"><Check />You are signed up</span><Button variant="outline" size="sm" disabled={busy} onClick={() => void act(() => toggle({ data: { id: ex.id, join: false } }), 'You are off the list.')}>Cancel</Button></>
-                : <Button disabled={busy || ex.full} onClick={() => void act(() => toggle({ data: { id: ex.id, join: true } }), 'You are signed up. See you on the mountain.')}>{ex.full ? 'Expedition full' : 'Sign up'}</Button>}
-              {isAdmin && <Button variant="ghost" size="icon" title="Delete expedition" aria-label={`Delete ${ex.title}`} onClick={() => remove(ex)}><Trash2 /></Button>}
-            </div>
-          </div>
-        </article>; })}</div>}
+            {ex.description && <p className="event-desc">{ex.description}</p>}
+            {!!ex.servers?.length && <ul className="event-servers">{ex.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong>{s.host && <small>{s.host}</small>}</span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
+            {ex.climbers.length > 0 && <p className="event-climbers">{ex.climbers.map(name => <span key={name}>@{name}</span>)}</p>}
+            <footer className="event-foot">{host(ex.leader ? `Led by ${ex.leader}` : 'Expedition')}
+              <div className="event-buttons">
+                {ex.event_url && <a className="event-join ghost" href={ex.event_url} target="_blank" rel="noreferrer"><DiscordIcon />Discord event</a>}
+                {!me.data ? <button className="event-join" onClick={linkDiscord}>Link Discord to join</button>
+                  : ex.joined ? <button className="event-join joined" disabled={busy} title="Click to cancel" onClick={() => void act(() => toggle({ data: { id: ex.id, join: false } }), 'You are off the list.')}><Check />Signed up</button>
+                  : <button className="event-join" disabled={busy || ex.full} onClick={() => void act(() => toggle({ data: { id: ex.id, join: true } }), 'You are signed up. See you on the mountain.')}>{ex.full ? 'Full' : 'Join'}</button>}
+              </div>
+            </footer>
+            {isAdmin && <div className="event-staff">
+              {isLocal && <button disabled={busy} onClick={() => { if (confirm(`Post "${ex.title} Starting Now!" to Discord?`)) void act(async () => { const r = await startNow({ data: ex.id }); if (r.announced !== 'sent') throw new Error(`The announcement was not posted: ${r.announced}.`); }, 'Posted to Discord.'); }}><Megaphone />Announce: starting now</button>}
+              <button className="danger" aria-label={`Delete ${ex.title}`} onClick={() => remove(ex)}><Trash2 />Delete</button>
+            </div>}
+          </article>; })}
+        </div>}
     </section>
     <HallOfFame isLocal={isLocal} isAdmin={isAdmin} onNotice={setNotice} />
     {isAdmin && <Dialog open={creating} onOpenChange={setCreating}><DialogContent className="editor-dialog"><DialogTitle className="panel-title">New expedition</DialogTitle><DialogDescription>It appears on this page straight away and is announced on Discord if an expeditions channel is set.</DialogDescription>
@@ -95,6 +108,8 @@ function Expeditions() {
         <label>Date and time<input name="starts_at" type="datetime-local" required /></label>
         <div className="form-columns"><label>Leader<input name="leader" maxLength={80} placeholder="Who is leading" /></label><label>Spots (0 = no limit)<input name="max_spots" type="number" min={0} max={500} defaultValue={0} /></label></div>
         <label>Details<textarea name="description" rows={4} maxLength={2000} placeholder="Meeting point, what to bring, expected length." /></label>
+        {isLocal && <><label>Roblox servers<textarea name="servers" rows={3} placeholder={'https://www.roblox.com/share?code=...&type=Server HostName\nOne server per line: the link, a space, then who is hosting'} /></label>
+        <label>Discord event link<input name="event_url" list="discord-event-links" placeholder="https://discord.com/events/..." /><datalist id="discord-event-links">{events.map(ev => <option key={ev.id} value={ev.url}>{ev.name}</option>)}</datalist></label></>}
         <Button disabled={busy}><Plus />{busy ? 'Creating…' : 'Create expedition'}</Button>
       </form>
     </DialogContent></Dialog>}

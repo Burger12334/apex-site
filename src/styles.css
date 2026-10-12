@@ -996,3 +996,50 @@ main:has(.focus-page) ~ .editor-bottom .editor-bottom-label { color: oklch(1 0 0
 @keyframes event-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
 .event-cover{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:14px;margin:0 0 12px}
 @media (prefers-reduced-motion: reduce){.event-live i{animation:none}}
+
+/* Expeditions: cards drawn like Discord's own event card */
+.event-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:18px;align-items:start}
+.event-card{display:grid;gap:10px;padding:16px;border-radius:12px;background:#2b2d31;border:1px solid #1e1f22;color:#f2f3f5;box-shadow:0 10px 30px rgba(0,0,0,.28);transition:transform .25s ease,border-color .25s ease}
+.event-card:hover{transform:translateY(-3px);border-color:#4e5058}
+.event-card.live{border-color:rgba(35,165,90,.55)}
+.event-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.event-when{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#b5bac1}
+.event-when svg{width:18px;height:18px}
+.event-when.live{color:#23a55a}
+.event-count{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:#1e1f22;color:#f2f3f5;font-size:13px;font-weight:700}
+.event-count svg{width:14px;height:14px}
+.event-card h3{margin:2px 0 0;font-size:20px;font-weight:700;line-height:1.25;color:#f2f3f5;overflow-wrap:anywhere}
+.event-desc{margin:0;font-size:14px;line-height:1.5;color:#dbdee1;white-space:pre-wrap;overflow-wrap:anywhere}
+.event-cover{display:block;width:100%;max-height:190px;object-fit:cover;border-radius:8px;margin:0}
+.event-servers{list-style:none;margin:2px 0 0;padding:0;display:grid;gap:8px}
+.event-servers li{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:8px;background:#232428}
+.event-servers li span{display:grid;min-width:0}
+.event-servers strong{font-size:13px}
+.event-servers small{font-size:12px;color:#b5bac1;overflow-wrap:anywhere}
+.event-climbers{display:flex;flex-wrap:wrap;gap:6px;margin:0}
+.event-climbers span{padding:2px 8px;border-radius:999px;background:#1e1f22;color:#b5bac1;font-size:11px;font-weight:600}
+.event-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:6px}
+.event-host{display:flex;align-items:center;gap:12px;min-width:0}
+.event-host > span:last-child{display:grid;min-width:0}
+.event-host strong{font-size:15px;color:#f2f3f5}
+.event-host small{font-size:12px;color:#b5bac1;overflow-wrap:anywhere}
+.event-logo{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;overflow:hidden;background:#1e1f22;color:#f2f3f5}
+.event-logo img{width:100%;height:100%;object-fit:cover}
+.event-logo svg{width:22px;height:22px}
+.event-buttons{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.event-join{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:96px;padding:9px 18px;border:0;border-radius:8px;background:#248046;color:#fff;font:inherit;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:background .15s ease}
+.event-join:hover{background:#1a6334}
+.event-join:disabled{opacity:.6;cursor:not-allowed}
+.event-join svg{width:16px;height:16px}
+.event-join.small{min-width:0;padding:6px 12px;font-size:13px}
+.event-join.ghost{background:#4e5058}
+.event-join.ghost:hover{background:#6d6f78}
+.event-join.joined{background:transparent;color:#23a55a;box-shadow:inset 0 0 0 1px #23a55a}
+.event-join.joined:hover{background:rgba(35,165,90,.12)}
+.event-staff{display:flex;gap:8px;flex-wrap:wrap;padding-top:10px;border-top:1px solid #3f4147}
+.event-staff button{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:0;border-radius:8px;background:#4e5058;color:#f2f3f5;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.event-staff button:hover{background:#6d6f78}
+.event-staff button:disabled{opacity:.6;cursor:not-allowed}
+.event-staff button.danger{margin-left:auto;background:transparent;color:#f23f42}
+.event-staff button.danger:hover{background:rgba(242,63,66,.12)}
+.event-staff svg{width:15px;height:15px}

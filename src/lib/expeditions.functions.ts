@@ -2,7 +2,9 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 
-export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string };
+export type ExpeditionServer = { url: string; host: string };
+// servers (Roblox private server links with who hosts each) and event_url (the Discord event) are optional extras.
+export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string; servers?: ExpeditionServer[]; event_url?: string };
 export type ExpeditionView = Expedition & { climbers: string[]; joined: boolean; full: boolean };
 export type Climber = { id: string; discord_id: string; username: string; avatar_url: string; summits: number; note: string };
 
@@ -11,6 +13,8 @@ const expeditionInput = z.object({
   title: z.string().trim().min(1).max(120), description: z.string().trim().max(2000),
   starts_at: z.string().refine(v => !Number.isNaN(new Date(v).getTime()), 'Enter a valid date and time'),
   leader: z.string().trim().max(80), max_spots: z.number().int().min(0).max(500),
+  servers: z.array(z.object({ url: z.string().trim().regex(/^https:\/\/(www\.)?roblox\.com\/\S+$/, 'Server links must be roblox.com links'), host: z.string().trim().max(60) })).max(8).default([]),
+  event_url: z.string().trim().regex(/^(https:\/\/(www\.)?discord\.com\/events\/\d+\/\d+)?$/, 'Paste the Discord event link (discord.com/events/...)').default(''),
 });
 
 // Upcoming expeditions (and ones that started in the last six hours) with who has signed up.
@@ -56,6 +60,20 @@ export const saveLocalExpedition = createServerFn({ method: 'POST' }).inputValid
   try { announced = await announceLocally(expedition, currentOrigin()) ? 'sent' : 'not set up'; } catch (e) { announced = `failed: ${e instanceof Error ? e.message.slice(0, 160) : 'unknown error'}`; }
   const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
   await logEvent({ title: 'Expedition created', color: LOG_COLORS.edit, lines: [`**Expedition** ${expedition.title}`, `**Announcement** ${announced}`], by: await actorName() });
+  return { announced };
+});
+// Own storage: staff post the "Starting Now!" message for an expedition, with its server links and Discord event.
+export const announceExpeditionStart = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {
+  const { localMode, readLocalList } = await import('./local-store.server');
+  if (!localMode()) throw new Error('Not available while the site is connected to the database.');
+  await (await import('./staff.server')).requireStaff();
+  const expedition = (await readLocalList<Expedition>('expeditions')).find(e => e.id === data);
+  if (!expedition) throw new Error('That expedition no longer exists.');
+  const { announceLocally } = await import('./expeditions.server'); const { currentOrigin } = await import('./discord.server');
+  let announced = 'not set up';
+  try { announced = await announceLocally(expedition, currentOrigin(), 'starting') ? 'sent' : 'not set up'; } catch (e) { announced = `failed: ${e instanceof Error ? e.message.slice(0, 160) : 'unknown error'}`; }
+  const { logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Expedition start announced', color: LOG_COLORS.good, lines: [`**Expedition** ${expedition.title}`, `**Announcement** ${announced}`], by: await actorName() });
   return { announced };
 });
 export const deleteLocalExpedition = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().uuid().parse(d)).handler(async ({ data }) => {

@@ -59,12 +59,41 @@ export function expeditionAnnouncement(expedition: Expedition, origin: string) {
   ].filter(Boolean).join('\n') }], allowed_mentions: { parse: [] } };
 }
 // Local test mode: posts to the expeditions webhook from the Discord settings. False when none is set.
-export async function announceLocally(expedition: Expedition, origin: string) {
+// Own storage: the announcement as a plain message, the way staff write it by hand: a big title, the ping,
+// each server link with its host underneath, then the Discord event and invite links. Discord turns the event
+// link into its own event card with the Join button.
+export function expeditionMessage(expedition: Expedition, origin: string, kind: 'new' | 'starting', roles: string[], invite: string) {
+  const at = Math.floor(new Date(expedition.starts_at).getTime() / 1000);
+  const servers = (expedition.servers ?? []).map((s, i) => [`Server ${i + 1}: ${s.url}`, s.host].filter(Boolean).join('\n'));
+  return [
+    `# ${expedition.title}${kind === 'starting' ? ' Starting Now!' : ''}`,
+    roles.map(r => `<@&${r}>`).join(' '),
+    kind === 'new' && `Starts <t:${at}:F> (<t:${at}:R>)`,
+    kind === 'new' && expedition.leader && `Led by ${expedition.leader}`,
+    kind === 'new' && expedition.description && expedition.description.slice(0, 1200),
+    servers.join('\n\n'),
+    expedition.event_url,
+    invite,
+    kind === 'new' && `Sign up: ${origin}/expeditions`,
+  ].filter(Boolean).join('\n').slice(0, 1990);
+}
+// The server invite from the site settings (control room), for the end of the announcement.
+async function discordInvite() {
+  try {
+    const saved = await (await import('./storage.server')).readJson<{ settings?: { discord_url?: string } } | null>('site.json', null);
+    if (saved?.settings) return saved.settings.discord_url ?? '';
+    const url = process.env['SUPABASE_URL']; const key = process.env['SUPABASE_PUBLISHABLE_KEY'];
+    if (!url || !key) return '';
+    const response = await fetch(`${url}/rest/v1/site_settings?id=eq.main&select=discord_url`, { headers: { apikey: key } });
+    return response.ok ? ((await response.json()) as { discord_url?: string }[])[0]?.discord_url ?? '' : '';
+  } catch { return ''; }
+}
+export async function announceLocally(expedition: Expedition, origin: string, kind: 'new' | 'starting' = 'new') {
   const config = await (await local()).readLocalDiscord();
   const rule = (await import('./notify')).notifyRule(config, 'expedition_new');
   const url = config.events_webhook_url;
   if (!url || !rule.on) return false;
-  const body = { ...expeditionAnnouncement(expedition, origin), content: rule.roles.map(r => `<@&${r}>`).join(' '), allowed_mentions: { parse: [], roles: rule.roles } };
+  const body = { content: expeditionMessage(expedition, origin, kind, rule.roles, await discordInvite()), allowed_mentions: { parse: [], roles: rule.roles } };
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(`Discord [${response.status}]: ${await response.text()}`);
   return true;
