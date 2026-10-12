@@ -4,6 +4,7 @@
 // Staff tools are limited to staff (see staff.server.ts).
 import type { ReportRow } from './community.functions';
 import { readBytes, readJson, toBase64, writeBytes, writeJson } from './storage.server';
+import type { NotifySettings } from './notify';
 
 type StoredReport = Omit<ReportRow, 'proof_url'> & { proof_file: string; proof_type: string; reviewed_by: string };
 
@@ -47,8 +48,8 @@ export async function setLocalNotification(id: string, notification_status: stri
 }
 
 // Discord alert settings. A channel webhook lets the site post and ping roles; the bot token covers the rest.
-export type LocalDiscord = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[] };
-const emptyDiscord = (): LocalDiscord => ({ webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false, staff_role_ids: [], supervision_role_ids: [] });
+export type LocalDiscord = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[]; notify: NotifySettings; quiet: boolean; discord_events: boolean };
+const emptyDiscord = (): LocalDiscord => ({ webhook_url: '', channel_id: '', ping_role_ids: [], app_role_ids: {}, log_webhook_url: '', app_webhook_url: '', guild_id: '', app_webhooks: {}, app_accept_roles: {}, reapply_cooldown_days: 0, events_webhook_url: '', log_visitors: false, staff_role_ids: [], supervision_role_ids: [], notify: {}, quiet: false, discord_events: true });
 export async function readLocalDiscord(): Promise<LocalDiscord> {
   return { ...emptyDiscord(), ...await readJson<Partial<LocalDiscord>>('discord-settings.json', {}) };
 }

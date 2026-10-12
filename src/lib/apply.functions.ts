@@ -130,14 +130,16 @@ export const updateLocalApplication = createServerFn({ method: 'POST' }).inputVa
   if (data.status === 'deleted') { await writeLocalApplications(rows.filter(r => r.id !== data.id)); await logEvent({ title: 'Application deleted', color: LOG_COLORS.bad, lines: who, by: await actorName() }); return { dm: '' }; }
   // The applicant is told the outcome by DM, and an accepted applicant gets the application's Discord role.
   let dm = ''; let role = '';
-  if (data.status !== 'pending') { const { sendDm, applicationDm } = await import('./decisions.server'); dm = await sendDm(row.discord_id, applicationDm(row, data.status, data.reason)); }
-  if (data.status === 'accepted') {
-    const { readLocalDiscord } = await import('./local-store.server');
-    const roleId = (await readLocalDiscord()).app_accept_roles[row.form_id];
+  const { readLocalDiscord } = await import('./local-store.server'); const { notifyRule } = await import('./notify');
+  const config = await readLocalDiscord(); let post = '';
+  if (data.status !== 'pending' && notifyRule(config, 'dm_app').on) { const { sendDm, applicationDm } = await import('./decisions.server'); dm = await sendDm(row.discord_id, applicationDm(row, data.status, data.reason)); }
+  if (data.status === 'accepted' && notifyRule(config, 'role_accept').on) {
+    const roleId = config.app_accept_roles[row.form_id];
     if (roleId) { const { giveRole } = await import('./decisions.server'); role = await giveRole(row.discord_id, roleId); }
   }
+  if (data.status !== 'pending') { const { sendEventPost } = await import('./community.server'); post = await sendEventPost('app_decided', { title: data.status === 'accepted' ? 'Application accepted' : 'Application denied', color: data.status === 'accepted' ? 0x22c55e : 0xef4444, description: [...who, data.reason && `**Reason** ${data.reason}`].filter(Boolean).join('\n') }, 'applications', config.app_webhooks[row.form_id] ?? ''); }
   await writeLocalApplications(rows.map(r => r.id === data.id ? { ...r, status: data.status, decision_reason: data.reason, dm_status: dm, role_status: role, decided_at: new Date().toISOString() } : r));
-  await logEvent({ title: data.status === 'accepted' ? 'Application accepted' : data.status === 'denied' ? 'Application denied' : 'Application set back to pending', color: data.status === 'accepted' ? LOG_COLORS.good : data.status === 'denied' ? LOG_COLORS.bad : LOG_COLORS.info, lines: [...who, data.reason && `**Reason** ${data.reason}`, dm && `**DM to applicant** ${dm}`, role && `**Discord role** ${role}`], by: await actorName() });
+  await logEvent({ title: data.status === 'accepted' ? 'Application accepted' : data.status === 'denied' ? 'Application denied' : 'Application set back to pending', color: data.status === 'accepted' ? LOG_COLORS.good : data.status === 'denied' ? LOG_COLORS.bad : LOG_COLORS.info, lines: [...who, data.reason && `**Reason** ${data.reason}`, dm && `**DM to applicant** ${dm}`, role && `**Discord role** ${role}`, post && `**Channel post** ${post}`], by: await actorName() });
   return { dm, role };
 });
 

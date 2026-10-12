@@ -60,9 +60,32 @@ export function expeditionAnnouncement(expedition: Expedition, origin: string) {
 }
 // Local test mode: posts to the expeditions webhook from the Discord settings. False when none is set.
 export async function announceLocally(expedition: Expedition, origin: string) {
-  const url = (await (await local()).readLocalDiscord()).events_webhook_url;
-  if (!url) return false;
-  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(expeditionAnnouncement(expedition, origin)) });
+  const config = await (await local()).readLocalDiscord();
+  const rule = (await import('./notify')).notifyRule(config, 'expedition_new');
+  const url = config.events_webhook_url;
+  if (!url || !rule.on) return false;
+  const body = { ...expeditionAnnouncement(expedition, origin), content: rule.roles.map(r => `<@&${r}>`).join(' '), allowed_mentions: { parse: [], roles: rule.roles } };
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(`Discord [${response.status}]: ${await response.text()}`);
   return true;
+}
+
+// The Discord server's own scheduled events (the ones made with "Create Event"), shown on the Expeditions page
+// when that option is on. Read with the bot; kept for a minute so page loads do not hammer Discord.
+export type DiscordEvent = { id: string; name: string; description: string; starts_at: string; live: boolean; interested: number; image_url: string; url: string; location: string };
+let eventCache: { at: number; events: DiscordEvent[] } | undefined;
+export async function listDiscordEvents(): Promise<DiscordEvent[]> {
+  const { localMode, readLocalDiscord } = await import('./local-store.server');
+  if (!localMode() || !(await readLocalDiscord()).discord_events) return [];
+  if (eventCache && Date.now() - eventCache.at < 60000) return eventCache.events;
+  try {
+    const { discordFetch, roleGuild } = await import('./community.server');
+    const guild = await roleGuild();
+    const raw = await discordFetch(`guilds/${guild}/scheduled-events?with_user_count=true`) as { id: string; name: string; description?: string | null; scheduled_start_time: string; status: number; user_count?: number; image?: string | null; entity_metadata?: { location?: string } | null }[];
+    // Status 1 is scheduled and 2 is live; finished and cancelled events are left out.
+    const events = raw.filter(e => e.status === 1 || e.status === 2).map(e => ({ id: e.id, name: e.name, description: e.description ?? '', starts_at: e.scheduled_start_time, live: e.status === 2, interested: e.user_count ?? 0, image_url: e.image ? `https://cdn.discordapp.com/guild-events/${e.id}/${e.image}.png?size=512` : '', url: `https://discord.com/events/${guild}/${e.id}`, location: e.entity_metadata?.location ?? '' }))
+      .sort((a, b) => Number(b.live) - Number(a.live) || a.starts_at.localeCompare(b.starts_at));
+    eventCache = { at: Date.now(), events };
+    return events;
+  } catch { return eventCache?.events ?? []; }
 }

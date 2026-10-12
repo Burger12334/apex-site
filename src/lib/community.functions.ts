@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start';
+import { NOTIFY_KEYS } from './notify';
 import { z } from 'zod';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
@@ -108,7 +109,13 @@ export const supervisorDecision = createServerFn({ method: 'POST' }).inputValida
   }
   // The reporter is told by DM when their report is closed; reopening is silent.
   let dm = '';
-  if (data.status !== 'open') { const { sendDm, reportDm } = await import('./decisions.server'); const { currentOrigin } = await import('./discord.server'); dm = await sendDm(report.reporter_discord_id, reportDm(report, data.status, data.reason, currentOrigin())); }
+  let post = '';
+  if (data.status !== 'open') {
+    const { sendDm, reportDm } = await import('./decisions.server'); const { currentOrigin } = await import('./discord.server');
+    const { notifyRule } = await import('./notify'); const { readLocalDiscord } = await import('./local-store.server');
+    if (!localMode() || notifyRule(await readLocalDiscord(), 'dm_report').on) dm = await sendDm(report.reporter_discord_id, reportDm(report, data.status, data.reason, currentOrigin()));
+    if (localMode()) { const { sendEventPost } = await import('./community.server'); post = await sendEventPost('report_closed', { title: data.status === 'resolved' ? 'Report resolved' : 'Report dismissed', color: data.status === 'resolved' ? 0x22c55e : 0x64748b, description: [`**Report about** ${report.reported_name}`, `**Reporter** <@${report.reporter_discord_id}>`, data.reason && `**Reason** ${data.reason}`, `**[Open report](${currentOrigin()}/reports/reviews?report=${report.id})**`].filter(Boolean).join('\n') }); }
+  }
   const { logEvent, LOG_COLORS } = await import('./audit-log.server');
   await logEvent({ title: data.status === 'open' ? 'Report reopened' : data.status === 'resolved' ? 'Report resolved' : 'Report dismissed', color: data.status === 'resolved' ? LOG_COLORS.good : data.status === 'dismissed' ? LOG_COLORS.bad : LOG_COLORS.info, lines: [`**Report about** ${report.reported_name}`, `**Reporter** <@${report.reporter_discord_id}>`, data.reason && `**Reason** ${data.reason}`, dm && `**DM to reporter** ${dm}`, `**Report** ${report.id}`], by: `<@${me.id}> (${me.username})` });
   return { dm };
@@ -132,6 +139,9 @@ const localDiscord = z.object({
   supervision_role_ids: z.array(snowflake).max(20),
   log_visitors: z.boolean(),
   events_webhook_url: z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for expeditions'),
+  notify: z.record(z.enum(NOTIFY_KEYS), z.object({ on: z.boolean(), roles: z.array(snowflake).max(20) })),
+  quiet: z.boolean(),
+  discord_events: z.boolean(),
   app_webhooks: z.record(z.string().uuid(), z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for each application')),
   guild_id: z.string().trim().regex(/^(\d{17,20})?$/, 'Enter a valid Discord server ID'),
   app_webhook_url: z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for applications'),

@@ -16,15 +16,15 @@ const expeditionInput = z.object({
 // Upcoming expeditions (and ones that started in the last six hours) with who has signed up.
 // `local` tells the page whether staff changes are saved on this computer or in the database.
 export const getExpeditions = createServerFn({ method: 'GET' }).handler(async () => {
-  const { listExpeditions, listSignups } = await import('./expeditions.server');
+  const { listExpeditions, listSignups, listDiscordEvents } = await import('./expeditions.server');
   const { readSession } = await import('./discord.server'); const { localMode } = await import('./local-store.server');
-  const [expeditions, signups, me] = await Promise.all([listExpeditions(), listSignups(), readSession()]);
+  const [expeditions, signups, me, events] = await Promise.all([listExpeditions(), listSignups(), readSession(), listDiscordEvents()]);
   const cutoff = Date.now() - 6 * 3600000;
   const upcoming: ExpeditionView[] = expeditions.filter(e => new Date(e.starts_at).getTime() >= cutoff).map(e => {
     const mine = signups.filter(s => s.expedition_id === e.id);
     return { ...e, climbers: mine.map(s => s.discord_username), joined: !!me && mine.some(s => s.discord_id === me.id), full: e.max_spots > 0 && mine.length >= e.max_spots };
   });
-  return { expeditions: upcoming, local: localMode() };
+  return { expeditions: upcoming, events, local: localMode() };
 });
 
 // Sign the linked Discord account up for an expedition, or take it off again.

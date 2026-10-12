@@ -7,6 +7,11 @@ export type ReportMessage = { id: string; report_id: string; author_role: ChatSi
 export type MyReport = { id: string; reported_name: string; status: string; created_at: string; decision_reason: string };
 
 const side = z.enum(['reporter', 'supervision']);
+// Own storage: whether staff left this Discord message switched on. Always on with the database connected.
+async function eventOn(key: import('./notify').NotifyKey) {
+  const { localMode, readLocalDiscord } = await import('./local-store.server');
+  return !localMode() || (await import('./notify')).notifyRule(await readLocalDiscord(), key).on;
+}
 
 export const myReports = createServerFn({ method: 'GET' }).handler(async (): Promise<MyReport[]> => {
   const { readSession } = await import('./discord.server');
@@ -29,7 +34,7 @@ export const sendReportMessage = createServerFn({ method: 'POST' }).inputValidat
   const { me, report } = await chatAccess(data.id, data.as);
   const { currentOrigin } = await import('./discord.server');
   const row: ReportMessage = { id: crypto.randomUUID(), report_id: report.id, author_role: data.as, author_discord_id: me.id, author_username: me.username, body: data.body, dm_status: '', created_at: new Date().toISOString() };
-  if (data.as === 'supervision') row.dm_status = await dmReporter(report, currentOrigin());
+  if (data.as === 'supervision' && await eventOn('dm_chat')) row.dm_status = await dmReporter(report, currentOrigin());
   await addReportMessage(row);
   // Supervision is told on Discord when the reporter writes back.
   const alert = data.as === 'reporter' ? await alertReporterReply(report, me.username, data.body, currentOrigin()) : '';

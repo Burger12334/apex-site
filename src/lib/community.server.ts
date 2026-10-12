@@ -165,7 +165,8 @@ export async function notifyReport(id: string, origin: string) {
 // Returns false when nothing is configured.
 export async function sendLocalAlert(text: string, embeds: object[] = [], roles?: string[], kind: 'reports' | 'applications' = 'reports', ownWebhook = '') {
   const { readLocalDiscord } = await import('./local-store.server'); const config = await readLocalDiscord();
-  const pings = roles ?? config.ping_role_ids;
+  // Quiet mode keeps every message but pings nobody.
+  const pings = config.quiet ? [] : roles ?? config.ping_role_ids;
   const body = { content: [pings.map(r => `<@&${r}>`).join(' '), text].filter(Boolean).join('\n'), embeds, allowed_mentions: { parse: [], roles: pings } };
   // An application's own webhook wins, then the shared applications webhook, then the reports one.
   const webhook = ownWebhook || (kind === 'applications' ? config.app_webhook_url || config.webhook_url : config.webhook_url);
@@ -178,7 +179,9 @@ export async function sendLocalAlert(text: string, embeds: object[] = [], roles?
   return false;
 }
 export async function notifyLocalReport(report: AlertReport, origin: string) {
-  const { setLocalNotification } = await import('./local-store.server');
+  const { setLocalNotification, readLocalDiscord } = await import('./local-store.server');
+  const { notifyRule } = await import('./notify');
+  if (!notifyRule(await readLocalDiscord(), 'report_new').on) { await setLocalNotification(report.id, 'off'); return; }
   try {
     const sent = await sendLocalAlert('', alertEmbeds(report, origin));
     await setLocalNotification(report.id, sent ? 'sent' : 'not_configured');
@@ -230,6 +233,8 @@ export async function notifyLocalApplication(application: AlertApplication, orig
   try {
     const { readLocalDiscord } = await import('./local-store.server');
     const config = await readLocalDiscord();
+    const { notifyRule } = await import('./notify');
+    if (!notifyRule(config, 'app_new').on) return;
     await sendLocalAlert('', applicationEmbeds(application, origin), formRoles?.length ? formRoles : config.app_role_ids[application.form_id] ?? [], 'applications', config.app_webhooks[application.form_id] ?? '');
   } catch (e) {
     console.error('Application alert failed', e);
@@ -239,4 +244,13 @@ export async function notifyLocalApplication(application: AlertApplication, orig
 }
 export async function sendLocalTestApplicationAlert(me: { id: string; username: string } | null, origin: string) {
   return sendLocalAlert('', applicationEmbeds({ form_id: 'test', form_title: 'Example Application', discord_id: me?.id ?? '0', discord_username: me?.username ?? 'example', answers: { 'Example question': 'This is a test alert from the Apex application system.\nNo application was created.' }, created_at: new Date().toISOString() }, origin), [], 'applications');
+}
+// Own storage: one of the optional channel posts from the Notifications card. Returns what happened for the log:
+// '' when the event is switched off, otherwise 'sent', 'not set up' or 'failed: <why>'.
+export async function sendEventPost(key: import('./notify').NotifyKey, embed: { title: string; description: string; color?: number }, kind: 'reports' | 'applications' = 'reports', ownWebhook = '') {
+  const { readLocalDiscord } = await import('./local-store.server'); const { notifyRule } = await import('./notify');
+  const rule = notifyRule(await readLocalDiscord(), key);
+  if (!rule.on) return '';
+  try { return await sendLocalAlert('', [embed], rule.roles, kind, ownWebhook) ? 'sent' : 'not set up'; }
+  catch (e) { return `failed: ${(e instanceof Error ? e.message : 'unknown error').slice(0, 200)}`; }
 }

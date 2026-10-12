@@ -30,8 +30,9 @@ function Expeditions() {
   const [notice, setNotice] = useState('');
   const load = useServerFn(getExpeditions); const toggle = useServerFn(toggleExpeditionSignup);
   const createLocal = useServerFn(saveLocalExpedition); const removeLocal = useServerFn(deleteLocalExpedition); const announce = useServerFn(announceExpedition);
-  const list = useQuery({ queryKey: ['expeditions', me.data?.id ?? 'guest'], queryFn: () => load() });
+  const list = useQuery({ queryKey: ['expeditions', me.data?.id ?? 'guest'], refetchInterval: 60000, queryFn: () => load() });
   const isLocal = list.data?.local ?? false;
+  const events = list.data?.events ?? [];
   const [creating, setCreating] = useState(false); const [busy, setBusy] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ['expeditions'] });
 
@@ -60,8 +61,18 @@ function Expeditions() {
     <section className="site-width apply-page">
       <div className="section-header"><div><div className="eyebrow">UPCOMING</div><h2>Sign up for a climb.</h2><p>Times are shown in your own time zone.</p></div>{isAdmin && <Button onClick={() => setCreating(true)}><Plus />New expedition</Button>}</div>
       {list.isLoading ? <div className="apply-card review-empty"><p>Loading expeditions…</p></div>
-        : !list.data?.expeditions.length ? <div className="apply-card review-empty"><Mountain /><p>No expeditions are scheduled right now. Check back soon.</p></div>
-        : <div className="expedition-grid">{list.data.expeditions.map(ex => { const at = new Date(ex.starts_at); return <article key={ex.id} className={`expedition-card ${ex.joined ? 'joined' : ''}`}>
+        : !list.data?.expeditions.length && !events.length ? <div className="apply-card review-empty"><Mountain /><p>No expeditions are scheduled right now. Check back soon.</p></div>
+        : <div className="expedition-grid">{events.map(ev => { const at = new Date(ev.starts_at); return <article key={ev.id} className={`expedition-card discord-event ${ev.live ? 'live' : ''}`}>
+          <div className="expedition-date"><small>{at.toLocaleDateString([], { month: 'short' })}</small><strong>{at.getDate()}</strong><span>{at.toLocaleDateString([], { weekday: 'short' })}</span></div>
+          <div className="expedition-body">
+            <p className="event-tags">{ev.live ? <span className="event-live"><i />Live now</span> : <span className="event-source"><DiscordIcon />Discord event</span>}</p>
+            <h3>{ev.name}</h3>
+            <p className="expedition-meta"><span><CalendarDays />{at.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>{ev.location && <span><Mountain />{ev.location}</span>}<span><Users />{ev.interested} interested</span></p>
+            {ev.image_url && <img className="event-cover" src={ev.image_url} alt="" loading="lazy" />}
+            {ev.description && <p className="expedition-text">{ev.description}</p>}
+            <div className="expedition-actions"><Button asChild><a href={ev.url} target="_blank" rel="noreferrer"><DiscordIcon />{ev.live ? 'Join on Discord' : 'Open in Discord'}</a></Button></div>
+          </div>
+        </article>; })}{(list.data?.expeditions ?? []).map(ex => { const at = new Date(ex.starts_at); return <article key={ex.id} className={`expedition-card ${ex.joined ? 'joined' : ''}`}>
           <div className="expedition-date"><small>{at.toLocaleDateString([], { month: 'short' })}</small><strong>{at.getDate()}</strong><span>{at.toLocaleDateString([], { weekday: 'short' })}</span></div>
           <div className="expedition-body">
             <h3>{ex.title}</h3>

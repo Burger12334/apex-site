@@ -1,7 +1,8 @@
 import { useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { queryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
-import { Plus, Trash2, Save, Settings2, Users, LogOut, ArrowUp, ArrowDown, Server, ShieldAlert, Flag, ScrollText, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, Save, Settings2, Users, LogOut, ArrowUp, ArrowDown, Server, ShieldAlert, Flag, ScrollText, CalendarDays, BellRing } from 'lucide-react';
+import { NOTIFY_EVENTS, notifyRule, type NotifySettings } from '@/lib/notify';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -132,7 +133,7 @@ function SettingsCard({ icon, tone, title, text, ready, children }: { icon: Reac
   </section>;
 }
 
-type LocalDiscordConfig = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[] };
+type LocalDiscordConfig = { webhook_url: string; channel_id: string; ping_role_ids: string[]; app_role_ids: Record<string, string[]>; log_webhook_url: string; app_webhook_url: string; guild_id: string; app_webhooks: Record<string, string>; app_accept_roles: Record<string, string>; reapply_cooldown_days: number; events_webhook_url: string; log_visitors: boolean; staff_role_ids: string[]; supervision_role_ids: string[]; notify: NotifySettings; quiet: boolean; discord_events: boolean };
 const WEBHOOK_HINT = 'https://discord.com/api/webhooks/…';
 const roleList = (value: FormDataEntryValue | null) => String(value ?? '').split(/[\s,]+/).filter(Boolean);
 
@@ -150,9 +151,11 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
     const app_role_ids: Record<string, string[]> = {}; const app_webhooks: Record<string, string> = {}; const app_accept_roles: Record<string, string> = {};
     for (const form of forms.data ?? []) { app_role_ids[form.id] = roleList(f.get(`app_${form.id}`)); app_webhooks[form.id] = String(f.get(`appw_${form.id}`) ?? '').trim(); app_accept_roles[form.id] = String(f.get(`appr_${form.id}`) ?? '').trim(); }
     if (Object.values(app_accept_roles).some(id => id && !/^\d{17,20}$/.test(id))) { setMessage('Enter one valid role ID for each role to give on accept.'); return; }
-    if ([...ids, ...staffRoles, ...supervisionRoles, ...Object.values(app_role_ids).flat()].some(id => !/^\d{17,20}$/.test(id))) { setMessage('Enter valid role IDs separated by commas.'); return; }
+    const notify: NotifySettings = {};
+    for (const ev of NOTIFY_EVENTS) notify[ev.key] = { on: f.get(`n_${ev.key}`) === 'on', roles: ev.roles ? roleList(f.get(`nr_${ev.key}`)) : [] };
+    if ([...ids, ...staffRoles, ...supervisionRoles, ...Object.values(app_role_ids).flat(), ...Object.values(notify).flatMap(n => n?.roles ?? [])].some(id => !/^\d{17,20}$/.test(id))) { setMessage('Enter valid role IDs separated by commas.'); return; }
     void run(async () => {
-      await saveConfig({ data: { webhook_url: String(f.get('webhook') ?? '').trim(), channel_id: config.channel_id, ping_role_ids: ids, app_role_ids: { ...config.app_role_ids, ...app_role_ids }, app_webhooks: { ...config.app_webhooks, ...app_webhooks }, app_accept_roles: { ...config.app_accept_roles, ...app_accept_roles }, reapply_cooldown_days: Math.max(0, Math.min(365, Math.round(Number(f.get('cooldown') || 0)))), events_webhook_url: String(f.get('events') ?? '').trim(), log_visitors: f.get('log_visitors') === 'on', staff_role_ids: staffRoles, supervision_role_ids: supervisionRoles, log_webhook_url: String(f.get('log') ?? '').trim(), app_webhook_url: String(f.get('app_webhook') ?? '').trim(), guild_id: String(f.get('guild') ?? '').trim() } });
+      await saveConfig({ data: { webhook_url: String(f.get('webhook') ?? '').trim(), channel_id: config.channel_id, ping_role_ids: ids, app_role_ids: { ...config.app_role_ids, ...app_role_ids }, app_webhooks: { ...config.app_webhooks, ...app_webhooks }, app_accept_roles: { ...config.app_accept_roles, ...app_accept_roles }, reapply_cooldown_days: Math.max(0, Math.min(365, Math.round(Number(f.get('cooldown') || 0)))), events_webhook_url: String(f.get('events') ?? '').trim(), log_visitors: f.get('log_visitors') === 'on', notify, quiet: f.get('quiet') === 'on', discord_events: f.get('discord_events') === 'on', staff_role_ids: staffRoles, supervision_role_ids: supervisionRoles, log_webhook_url: String(f.get('log') ?? '').trim(), app_webhook_url: String(f.get('app_webhook') ?? '').trim(), guild_id: String(f.get('guild') ?? '').trim() } });
       await qc.invalidateQueries({ queryKey: ['local-discord'] });
     }, 'Discord settings saved.');
   }
@@ -164,6 +167,14 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
         <div className="settings-scroll">
           <SettingsCard icon={<Server />} tone="tone-blue" title="Server" text="The server whose roles show next to people's names. The Apex bot must be in it." ready={!!config.guild_id}>
             <label>Discord server ID<input name="guild" pattern="[0-9]{17,20}" defaultValue={config.guild_id} placeholder="e.g. 123456789012345678" /></label>
+          </SettingsCard>
+          <SettingsCard icon={<BellRing />} tone="tone-orange" title="Notifications & pings" text="Every message the site sends to Discord. Switch each one on or off and choose who it pings." ready={!config.quiet}>
+            <label className="settings-check notify-quiet"><input type="checkbox" name="quiet" defaultChecked={config.quiet} />Quiet mode: send everything, ping nobody<small className="field-hint">Turns off every role ping on the site, including the report and application roles below, until you untick it.</small></label>
+            {(['channel', 'dm'] as const).map(group => <div key={group} className="notify-group"><h4>{group === 'channel' ? 'Posts in your Discord channels' : 'Direct messages and roles (sent by the bot)'}</h4>
+              {NOTIFY_EVENTS.filter(ev => ev.group === group).map(ev => { const rule = notifyRule({ notify: config.notify }, ev.key); return <div key={ev.key} className="notify-row">
+                <label className="settings-check"><input type="checkbox" name={`n_${ev.key}`} defaultChecked={rule.on} />{ev.label}<small className="field-hint">{ev.hint}</small></label>
+                {ev.roles && <label className="notify-roles">Roles to ping<input name={`nr_${ev.key}`} defaultValue={rule.roles.join(', ')} placeholder="Role IDs, separated by commas (empty = no ping)" /></label>}
+              </div>; })}</div>)}
           </SettingsCard>
           <SettingsCard icon={<Users />} tone="tone-violet" title="Staff access" text="Which Discord roles can use the staff tools on this site. Owners set on the server always have access." ready={config.staff_role_ids.length > 0}>
             <label>Staff roles<input name="staff_roles" defaultValue={config.staff_role_ids.join(', ')} placeholder="Role IDs, separated by commas" /><small className="field-hint">Members with any of these roles can edit applications, the team, expeditions and these settings, and review applications and reports.</small></label>
@@ -188,6 +199,7 @@ function LocalDiscordSettings({ config }: { config: LocalDiscordConfig }) {
           </SettingsCard>
           <SettingsCard icon={<CalendarDays />} tone="tone-orange" title="Expeditions" text="New expeditions are announced in this channel." ready={!!config.events_webhook_url}>
             <label>Webhook URL<input name="events" type="url" defaultValue={config.events_webhook_url} placeholder={WEBHOOK_HINT} /><small className="field-hint">Leave empty for no announcement.</small></label>
+            <label className="settings-check"><input type="checkbox" name="discord_events" defaultChecked={config.discord_events} />Show our Discord events on the Expeditions page<small className="field-hint">Events made in Discord with “Create Event” appear on the site by themselves, with a live badge, how many are interested and a button that opens the event in Discord. Nothing to copy over.</small></label>
           </SettingsCard>
           <SettingsCard icon={<ScrollText />} tone="tone-teal" title="Activity log" text="Everything that happens on the site is posted here. Nobody is pinged." ready={!!config.log_webhook_url}>
             <label>Webhook URL<input name="log" type="url" defaultValue={config.log_webhook_url} placeholder={WEBHOOK_HINT} /><small className="field-hint">Leave empty to turn the log off.</small></label>

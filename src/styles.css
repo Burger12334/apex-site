@@ -976,3 +976,23 @@ main:has(.focus-page) ~ .editor-bottom .editor-bottom-label { color: oklch(1 0 0
 .reply-badge.seen{background:transparent;color:#f59e0b;border:1px solid rgba(245,158,11,.5);box-shadow:none;font-weight:600}
 .reply-summary{display:flex;align-items:center;gap:7px;margin:6px 0 0;color:#f59e0b;font-weight:600;font-size:14px}
 .reply-summary svg{width:16px;height:16px}
+
+/* Discord settings: Notifications & pings card */
+.notify-quiet{padding:12px 14px;border:1px solid rgba(245,158,11,.4);border-radius:12px;background:rgba(245,158,11,.08)}
+.notify-group{display:grid;gap:8px}
+.notify-group h4{margin:8px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.notify-row{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:color-mix(in srgb,var(--card) 70%,transparent)}
+.notify-row .notify-roles{margin-left:28px;font-size:13px}
+
+/* Expeditions page: events pulled from the Discord server */
+.expedition-card.discord-event{border-color:color-mix(in srgb,#5865f2 45%,var(--border))}
+.expedition-card.discord-event.live{border-color:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.16),var(--shadow)}
+.event-tags{margin:0 0 4px;display:flex;gap:8px}
+.event-source,.event-live{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em}
+.event-source{background:rgba(88,101,242,.14);color:#5865f2}
+.event-source svg{width:14px;height:14px}
+.event-live{background:rgba(34,197,94,.16);color:#16a34a}
+.event-live i{width:8px;height:8px;border-radius:50%;background:#22c55e;animation:event-pulse 1.4s ease-in-out infinite}
+@keyframes event-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+.event-cover{display:block;width:100%;max-height:180px;object-fit:cover;border-radius:14px;margin:0 0 12px}
+@media (prefers-reduced-motion: reduce){.event-live i{animation:none}}

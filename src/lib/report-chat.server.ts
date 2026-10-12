@@ -71,7 +71,7 @@ export async function waitingReplies(): Promise<Record<string, string>> {
 export async function alertReporterReply(report: ReportSummary, username: string, body: string, origin: string) {
   const embed = { title: 'A reporter replied on their report', color: 0xf59e0b, description: [`**Reporter** <@${report.reporter_discord_id}> (${username})`, `**Report about** ${report.reported_name}`, `**Message** ${body.length > 500 ? `${body.slice(0, 500)}…` : body}`, `**[Open report](${origin}/reports/reviews?report=${report.id})**`].join('\n') };
   try {
-    if (await isLocal()) { const { sendLocalAlert } = await import('./community.server'); return await sendLocalAlert('', [embed], []) ? 'sent' : 'not_configured'; }
+    if (await isLocal()) { const { sendEventPost } = await import('./community.server'); return await sendEventPost('report_reply', embed); }
     const { data: config } = await (await db()).from('discord_settings').select('channel_id').eq('id', 'main').maybeSingle();
     const channel = (config as { channel_id?: string } | null)?.channel_id;
     if (!channel) return 'not_configured';
