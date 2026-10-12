@@ -3,18 +3,22 @@ import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 
 export type ExpeditionServer = { url: string };
+// Someone picked by Discord ID (id set, with their picture) or typed as a plain name (id empty).
+export type ExpeditionPerson = { id: string; username: string; avatar_url: string };
 // guides and sherpas (who is running it), servers (Roblox private server links) and event_url (the Discord
 // event) are optional extras. leader is the older single-name field and is still shown when it is all there is.
-export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string; guides?: string; sherpas?: string; servers?: ExpeditionServer[]; event_url?: string };
+export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string; guides?: string; sherpas?: string; guide_members?: ExpeditionPerson[]; sherpa_members?: ExpeditionPerson[]; servers?: ExpeditionServer[]; event_url?: string };
 export type ExpeditionView = Expedition & { climbers: string[]; joined: boolean; full: boolean };
 export type Climber = { id: string; discord_id: string; username: string; avatar_url: string; summits: number; note: string };
 
 const snowflake = z.string().regex(/^\d{17,20}$/, 'Enter a valid Discord ID');
+const person = z.object({ id: z.string().regex(/^(\d{17,20})?$/), username: z.string().trim().min(1).max(60), avatar_url: z.string().max(300).regex(/^(https:\/\/cdn\.discordapp\.com\/\S+)?$/) });
 const expeditionInput = z.object({
   title: z.string().trim().min(1).max(120), description: z.string().trim().max(2000),
   starts_at: z.string().refine(v => !Number.isNaN(new Date(v).getTime()), 'Enter a valid date and time'),
   leader: z.string().trim().max(80), max_spots: z.number().int().min(0).max(500),
   guides: z.string().trim().max(200).default(''), sherpas: z.string().trim().max(200).default(''),
+  guide_members: z.array(person).max(20).default([]), sherpa_members: z.array(person).max(20).default([]),
   servers: z.array(z.object({ url: z.string().trim().regex(/^https:\/\/(www\.)?roblox\.com\/\S+$/, 'Server links must be roblox.com links') })).max(8).default([]),
   event_url: z.string().trim().regex(/^(https:\/\/(www\.)?discord\.com\/events\/\d+\/\d+)?$/, 'Paste the Discord event link (discord.com/events/...)').default(''),
 });
@@ -23,14 +27,16 @@ const expeditionInput = z.object({
 // `local` tells the page whether staff changes are saved on this computer or in the database.
 export const getExpeditions = createServerFn({ method: 'GET' }).handler(async () => {
   const { listExpeditions, listSignups, listDiscordEvents } = await import('./expeditions.server');
-  const { readSession } = await import('./discord.server'); const { localMode } = await import('./local-store.server');
+  const { readSession } = await import('./discord.server'); const { localMode, readLocalDiscord } = await import('./local-store.server');
   const [expeditions, signups, me, events] = await Promise.all([listExpeditions(), listSignups(), readSession(), listDiscordEvents()]);
+  // Staff can switch Discord event links off for the whole site.
+  const eventLinks = !localMode() || (await readLocalDiscord()).event_links;
   const cutoff = Date.now() - 6 * 3600000;
   const upcoming: ExpeditionView[] = expeditions.filter(e => new Date(e.starts_at).getTime() >= cutoff).map(e => {
     const mine = signups.filter(s => s.expedition_id === e.id);
-    return { ...e, climbers: mine.map(s => s.discord_username), joined: !!me && mine.some(s => s.discord_id === me.id), full: e.max_spots > 0 && mine.length >= e.max_spots };
+    return { ...e, event_url: eventLinks ? e.event_url ?? '' : '', climbers: mine.map(s => s.discord_username), joined: !!me && mine.some(s => s.discord_id === me.id), full: e.max_spots > 0 && mine.length >= e.max_spots };
   });
-  return { expeditions: upcoming, events, local: localMode() };
+  return { expeditions: upcoming, events, eventLinks, local: localMode() };
 });
 
 // Sign the linked Discord account up for an expedition, or take it off again.
@@ -55,7 +61,8 @@ export const saveLocalExpedition = createServerFn({ method: 'POST' }).inputValid
   const { localMode, readLocalList, writeLocalList } = await import('./local-store.server');
   if (!localMode()) throw new Error('Not available while the site is connected to the database.');
   await (await import('./staff.server')).requireStaff();
-  const expedition: Expedition = { ...data, starts_at: new Date(data.starts_at).toISOString(), id: crypto.randomUUID(), created_at: new Date().toISOString() };
+  const names = (list: ExpeditionPerson[]) => list.map(p => p.username).join(', ');
+  const expedition: Expedition = { ...data, guides: data.guides || names(data.guide_members), sherpas: data.sherpas || names(data.sherpa_members), starts_at: new Date(data.starts_at).toISOString(), id: crypto.randomUUID(), created_at: new Date().toISOString() };
   await writeLocalList('expeditions', [...await readLocalList<Expedition>('expeditions'), expedition]);
   const { announceLocally } = await import('./expeditions.server'); const { currentOrigin } = await import('./discord.server');
   let announced = 'not set up';

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as ExpeditionsRouteImport } from './routes/expeditions'
+import { Route as MembersRouteImport } from './routes/members'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RulesRouteImport } from './routes/rules'
@@ -39,6 +40,11 @@ const ApplyRoute = ApplyRouteImport.update({
 const ExpeditionsRoute = ExpeditionsRouteImport.update({
   id: '/expeditions',
   path: '/expeditions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MembersRoute = MembersRouteImport.update({
+  id: '/members',
+  path: '/members',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -169,6 +178,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/members'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -187,6 +197,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/members'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -205,6 +216,7 @@ export interface FileRouteTypes {
     | '/'
     | '/apply'
     | '/expeditions'
+    | '/members'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplyRoute: typeof ApplyRoute
   ExpeditionsRoute: typeof ExpeditionsRoute
+  MembersRoute: typeof MembersRoute
   PrivacyRoute: typeof PrivacyRoute
   ReportsRoute: typeof ReportsRoute
   RulesRoute: typeof RulesRoute
@@ -260,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/expeditions'
       fullPath: '/expeditions'
       preLoaderRoute: typeof ExpeditionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/members': {
+      id: '/members'
+      path: '/members'
+      fullPath: '/members'
+      preLoaderRoute: typeof MembersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -360,6 +380,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplyRoute: ApplyRoute,
   ExpeditionsRoute: ExpeditionsRoute,
+  MembersRoute: MembersRoute,
   PrivacyRoute: PrivacyRoute,
   ReportsRoute: ReportsRoute,
   RulesRoute: RulesRoute,

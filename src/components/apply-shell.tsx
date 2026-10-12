@@ -36,7 +36,7 @@ export function useApplyAccess() {
   return { user, me, role, access, isAdmin, isSupervisor, linkDiscord, unlink };
 }
 
-export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-reviews' | 'expeditions' | 'rules' | 'legal';
+export type ShellPage = 'home' | 'apply' | 'reviews' | 'reports' | 'report-reviews' | 'expeditions' | 'members' | 'rules' | 'legal';
 
 export function ApplyShell({ children, active, notice, onNotice }: { children: ReactNode; active: ShellPage; notice?: string; onNotice?: (m: string) => void }) {
   const { data } = useSuspenseQuery(apexQuery);
@@ -61,7 +61,7 @@ export function ApplyShell({ children, active, notice, onNotice }: { children: R
     <div className="bg-scene" aria-hidden="true"><span className="orb orb-a" /><span className="orb orb-b" /><span className="orb orb-c" /><span className="topo" /><span className="sun" /><span className="cloud cloud-a" /><span className="cloud cloud-b" /><span className="cloud cloud-c" /><span className="ridge ridge-far" /><span className="ridge ridge-mid" /><span className="ridge ridge-near" /><span className="snow snow-near" /><span className="snow snow-far" /></div>
     <div className="scroll-progress" aria-hidden="true" />
     <header className={`apex-header ${headerHidden ? 'is-hidden' : ''}`}><div className="apex-header-inner site-width"><Link to="/" className="brand" aria-label="Apex home">{brand}</Link>
-      <nav className="header-nav" aria-label="Main navigation"><Link className={nav('home')} to="/" activeOptions={{ exact: true }}>Basecamp</Link><Link className={nav('apply')} to="/apply" activeOptions={{ exact: true }}>Applications</Link><Link className={nav('expeditions')} to="/expeditions">Expeditions</Link><Link className={nav('reports')} to="/reports" activeOptions={{ exact: true }}>Reports</Link><Link className={nav('rules')} to="/rules">Rules</Link>{isAdmin && <Link className={nav('reviews')} to="/apply/reviews">App reviews</Link>}{(isAdmin || isSupervisor) && <Link className={nav('report-reviews')} to="/reports/reviews">Report reviews</Link>}</nav>
+      <nav className="header-nav" aria-label="Main navigation"><Link className={nav('home')} to="/" activeOptions={{ exact: true }}>Basecamp</Link><Link className={nav('apply')} to="/apply" activeOptions={{ exact: true }}>Applications</Link><Link className={nav('expeditions')} to="/expeditions">Expeditions</Link><Link className={nav('members')} to="/members">Members</Link><Link className={nav('reports')} to="/reports" activeOptions={{ exact: true }}>Reports</Link><Link className={nav('rules')} to="/rules">Rules</Link>{isAdmin && <Link className={nav('reviews')} to="/apply/reviews">App reviews</Link>}{(isAdmin || isSupervisor) && <Link className={nav('report-reviews')} to="/reports/reviews">Report reviews</Link>}</nav>
       <div className="header-actions"><DiscordAccount /><Button className="admin-button" variant="ghost" onClick={() => setEditor(true)}><LockKeyhole />{role.data || access.data?.staff ? 'Control room' : user ? 'Account' : 'Admin'}</Button></div>
     </div></header>
     <main>{children}</main>

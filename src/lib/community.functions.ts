@@ -142,6 +142,8 @@ const localDiscord = z.object({
   notify: z.record(z.enum(NOTIFY_KEYS), z.object({ on: z.boolean(), roles: z.array(snowflake).max(20) })),
   quiet: z.boolean(),
   discord_events: z.boolean(),
+  event_links: z.boolean(),
+  members_public: z.boolean(),
   app_webhooks: z.record(z.string().uuid(), z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for each application')),
   guild_id: z.string().trim().regex(/^(\d{17,20})?$/, 'Enter a valid Discord server ID'),
   app_webhook_url: z.string().trim().regex(/^(https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+)?$/, 'Enter a Discord webhook URL for applications'),

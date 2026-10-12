@@ -62,6 +62,8 @@ export function expeditionAnnouncement(expedition: Expedition, origin: string) {
 // Own storage: the announcement as a plain message, the way staff write it by hand: a big title, the ping,
 // each server link, then the Discord event and invite links. Discord turns the event
 // link into its own event card with the Join button.
+// People picked by Discord ID show as mentions (nobody is pinged by them); typed names stay as text.
+const crew = (members: { id: string; username: string }[] | undefined, fallback: string) => members?.length ? members.map(p => p.id ? `<@${p.id}>` : p.username).join(', ') : fallback;
 export function expeditionMessage(expedition: Expedition, origin: string, kind: 'new' | 'starting', roles: string[], invite: string) {
   const at = Math.floor(new Date(expedition.starts_at).getTime() / 1000);
   const servers = (expedition.servers ?? []).map((s, i) => `Server ${i + 1}: ${s.url}`);
@@ -69,8 +71,8 @@ export function expeditionMessage(expedition: Expedition, origin: string, kind: 
     `# ${expedition.title}${kind === 'starting' ? ' Starting Now!' : ''}`,
     roles.map(r => `<@&${r}>`).join(' '),
     kind === 'new' && `Starts <t:${at}:F> (<t:${at}:R>)`,
-    kind === 'new' && expedition.guides && `Guides: ${expedition.guides}`,
-    kind === 'new' && expedition.sherpas && `Sherpas: ${expedition.sherpas}`,
+    kind === 'new' && expedition.guides && `Guides: ${crew(expedition.guide_members, expedition.guides)}`,
+    kind === 'new' && expedition.sherpas && `Sherpas: ${crew(expedition.sherpa_members, expedition.sherpas)}`,
     kind === 'new' && !expedition.guides && !expedition.sherpas && expedition.leader && `Led by ${expedition.leader}`,
     kind === 'new' && expedition.description && expedition.description.slice(0, 1200),
     servers.join('\n'),
@@ -107,7 +109,7 @@ export async function announceLocally(expedition: Expedition, origin: string, ki
   if (!url || !rule.on) return false;
   // Expeditions always ping the server's "Expedition Pings" role (found by name), unless quiet mode is on.
   const roles = config.quiet ? [] : await expeditionPingRoles();
-  const body = { content: expeditionMessage(expedition, origin, kind, roles, await discordInvite()), allowed_mentions: { parse: [], roles } };
+  const body = { content: expeditionMessage(config.event_links ? expedition : { ...expedition, event_url: '' }, origin, kind, roles, await discordInvite()), allowed_mentions: { parse: [], roles } };
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(`Discord [${response.status}]: ${await response.text()}`);
   return true;

@@ -13,6 +13,7 @@ import { logStaff } from '@/lib/staff-log';
 import { ApplyShell, DiscordIcon, apexQuery, useApplyAccess } from '@/components/apply-shell';
 import { DiscordAvatar } from '@/components/community';
 import { HeroBackdrop } from '@/components/hero-slides';
+import { DiscordPicker, readPicked } from '@/components/discord-picker';
 import { lookupDiscord } from '@/lib/community.functions';
 import { announceExpedition, announceExpeditionStart, deleteLocalClimber, deleteLocalExpedition, getExpeditions, getHallOfFame, saveLocalClimber, saveLocalExpedition, toggleExpeditionSignup, type ExpeditionView } from '@/lib/expeditions.functions';
 
@@ -48,11 +49,11 @@ function Expeditions() {
     const input = { title: String(f.get('title')).trim(), description: String(f.get('description')).trim(), starts_at: new Date(String(f.get('starts_at'))).toISOString(), leader: String(f.get('leader') ?? '').trim(), max_spots: Number(f.get('max_spots') || 0) };
     // One Roblox server link per line.
     const servers = String(f.get('servers') ?? '').split(/\s+/).map(url => url.trim()).filter(Boolean).map(url => ({ url }));
-    const guides = String(f.get('guides') ?? '').trim(); const sherpas = String(f.get('sherpas') ?? '').trim();
+    const guide_members = readPicked(f.get('guides')); const sherpa_members = readPicked(f.get('sherpas'));
     const event_url = String(f.get('event_url') ?? '').trim();
     let announced = '';
     const ok = await act(async () => {
-      if (isLocal) announced = (await createLocal({ data: { ...input, guides, sherpas, servers, event_url } })).announced;
+      if (isLocal) announced = (await createLocal({ data: { ...input, guides: '', sherpas: '', guide_members, sherpa_members, servers, event_url } })).announced;
       else { const { data, error } = await tables.from('expeditions').insert(input).select('id').single(); if (error) throw error; announced = (await announce({ data: data.id as string })).announced; logStaff('Expedition created', [input.title, `Announcement: ${announced}`]); }
     }, 'Expedition created.');
     if (ok) { setNotice(`Expedition created. Discord announcement: ${announced}.`); form.reset(); setCreating(false); }
@@ -86,7 +87,7 @@ function Expeditions() {
             <h3>{ex.title}</h3>
             {ex.description && <p className="event-desc">{ex.description}</p>}
             {!!ex.servers?.length && <ul className="event-servers">{ex.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong></span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
-            {(ex.guides || ex.sherpas) && <dl className="event-crew">{ex.guides && <div><dt>Guides</dt><dd>{ex.guides}</dd></div>}{ex.sherpas && <div><dt>Sherpas</dt><dd>{ex.sherpas}</dd></div>}</dl>}
+            {(ex.guides || ex.sherpas) && <dl className="event-crew">{([['Guides', ex.guides, ex.guide_members], ['Sherpas', ex.sherpas, ex.sherpa_members]] as const).map(([label, text, people]) => text ? <div key={label}><dt>{label}</dt><dd>{people?.length ? <span className="crew-people">{people.map(p => <span key={p.id || p.username}>{p.avatar_url && <img src={p.avatar_url} alt="" loading="lazy" />}{p.username}</span>)}</span> : text}</dd></div> : null)}</dl>}
             {ex.climbers.length > 0 && <p className="event-climbers">{ex.climbers.map(name => <span key={name}>@{name}</span>)}</p>}
             <footer className="event-foot">{host(!ex.guides && !ex.sherpas && ex.leader ? `Led by ${ex.leader}` : 'Expedition')}
               <div className="event-buttons">
@@ -108,11 +109,11 @@ function Expeditions() {
       <form className="editor-form" onSubmit={create}>
         <label>Name<input name="title" required maxLength={120} placeholder="Summit push from Camp II" /></label>
         <label>Date and time<input name="starts_at" type="datetime-local" required /></label>
-        {isLocal ? <div className="form-columns"><label>Guides<input name="guides" maxLength={200} placeholder="Names, separated by commas" /></label><label>Sherpas<input name="sherpas" maxLength={200} placeholder="Names, separated by commas" /></label></div> : <label>Leader<input name="leader" maxLength={80} placeholder="Who is leading" /></label>}
+        {isLocal ? <><div className="picker-field"><span>Guides</span><DiscordPicker name="guides" placeholder="Paste a Discord ID, or type a name and press Enter" /></div><div className="picker-field"><span>Sherpas</span><DiscordPicker name="sherpas" placeholder="Paste a Discord ID, or type a name and press Enter" /></div></> : <label>Leader<input name="leader" maxLength={80} placeholder="Who is leading" /></label>}
         <label>Spots (0 = no limit)<input name="max_spots" type="number" min={0} max={500} defaultValue={0} /></label>
         <label>Details<textarea name="description" rows={4} maxLength={2000} placeholder="Meeting point, what to bring, expected length." /></label>
         {isLocal && <><label>Roblox servers<textarea name="servers" rows={3} placeholder={'One Roblox server link per line\nhttps://www.roblox.com/share?code=...&type=Server'} /></label>
-        <label>Discord event link<input name="event_url" list="discord-event-links" placeholder="https://discord.com/events/..." /><datalist id="discord-event-links">{events.map(ev => <option key={ev.id} value={ev.url}>{ev.name}</option>)}</datalist></label></>}
+        {list.data?.eventLinks && <label>Discord event link <small>(optional)</small><input name="event_url" list="discord-event-links" placeholder="https://discord.com/events/..." /><datalist id="discord-event-links">{events.map(ev => <option key={ev.id} value={ev.url}>{ev.name}</option>)}</datalist></label>}</>}
         <Button disabled={busy}><Plus />{busy ? 'Creating…' : 'Create expedition'}</Button>
       </form>
     </DialogContent></Dialog>}
@@ -125,16 +126,18 @@ function HallOfFame({ isLocal, isAdmin, onNotice }: { isLocal: boolean; isAdmin:
   const qc = useQueryClient();
   const load = useServerFn(getHallOfFame); const saveLocal = useServerFn(saveLocalClimber); const removeLocal = useServerFn(deleteLocalClimber); const lookup = useServerFn(lookupDiscord);
   const climbers = useQuery({ queryKey: ['hall-of-fame'], queryFn: () => load() });
-  const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [status, setStatus] = useState('');
+  const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [status, setStatus] = useState(''); const [pickKey, setPickKey] = useState(0);
   const refresh = () => qc.invalidateQueries({ queryKey: ['hall-of-fame'] });
   async function run(action: () => Promise<unknown>, ok: string) { setBusy(true); setStatus(''); try { await action(); setStatus(ok); await refresh(); } catch (e) { setStatus(message(e, 'Could not save.')); } finally { setBusy(false); } }
   function add(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget; const f = new FormData(form);
-    const input = { discord_id: String(f.get('discord_id')).trim(), summits: Number(f.get('summits') || 0), note: String(f.get('note')).trim() };
+    const picked = readPicked(f.get('climber'))[0];
+    if (!picked?.id) { setStatus('Paste the climber’s Discord user ID first.'); return; }
+    const input = { discord_id: picked.id, summits: Number(f.get('summits') || 0), note: String(f.get('note')).trim() };
     void run(async () => {
       if (isLocal) await saveLocal({ data: input });
       else { const identity = await lookup({ data: input.discord_id }); const { error } = await tables.from('hall_of_fame').upsert({ ...identity, summits: input.summits, note: input.note }, { onConflict: 'discord_id' }); if (error) throw error; logStaff('Hall of fame updated', [`${identity.username}: ${input.summits} summits`]); }
-      form.reset();
+      form.reset(); setPickKey(k => k + 1);
     }, 'Saved.');
   }
   const remove = (id: string) => void run(async () => { if (isLocal) await removeLocal({ data: id }); else { const { error } = await tables.from('hall_of_fame').delete().eq('id', id); if (error) throw error; logStaff('Removed from the hall of fame'); } }, 'Removed.');
@@ -154,7 +157,7 @@ function HallOfFame({ isLocal, isAdmin, onNotice }: { isLocal: boolean; isAdmin:
     </>}
     {isAdmin && <Dialog open={open} onOpenChange={setOpen}><DialogContent className="editor-dialog"><DialogTitle className="panel-title">Hall of fame</DialogTitle><DialogDescription>Add a climber by Discord ID, or enter the same ID again to change their summit count.</DialogDescription>
       <form className="editor-form" onSubmit={add}>
-        <label>Discord user ID<input name="discord_id" required pattern="[0-9]{17,20}" placeholder="Discord user ID" /></label>
+        <div className="picker-field"><span>Climber</span><DiscordPicker key={pickKey} name="climber" single required placeholder="Paste their Discord user ID" /></div>
         <div className="form-columns"><label>Summits<input name="summits" type="number" min={0} required defaultValue={1} /></label><label>Note (optional)<input name="note" maxLength={120} placeholder="First to summit" /></label></div>
         <Button disabled={busy}><Plus />Add or update climber</Button>
       </form>
