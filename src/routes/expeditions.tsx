@@ -168,7 +168,7 @@ function HallOfFame({ isLocal, isAdmin, onNotice }: { isLocal: boolean; isAdmin:
   const all = climbers.data ?? []; const podium = all.slice(0, 3); const rest = all.slice(3);
 
   return <section className="site-width hall-section" id="hall-of-fame">
-    <div className="section-header"><div><div className="eyebrow">HALL OF FAME</div><h2>Most summits with Apex.</h2><p>The climbers who keep reaching the top.</p></div>{isAdmin && <Button variant="outline" onClick={() => { setOpen(true); onNotice(''); }}><Trophy />Manage hall of fame</Button>}</div>
+    <div className="section-header"><div><div className="eyebrow">TOP CLIMBERS</div><h2>Hall of Fame</h2><p>The climbers who keep reaching the top.</p></div>{isAdmin && <Button variant="outline" onClick={() => { setOpen(true); onNotice(''); }}><Trophy />Manage hall of fame</Button>}</div>
     {all.length === 0 ? <div className="apply-card review-empty"><Trophy /><p>The hall of fame is waiting for its first climber.</p></div> : <>
       <div className="podium">{podium.map((c, i) => <article key={c.id} className={`podium-card rank-${i + 1}`}>
         <span className="podium-rank">{RANK_ICONS[i]}{i + 1}</span>
