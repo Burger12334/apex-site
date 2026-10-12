@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplyRouteImport } from './routes/apply'
+import { Route as ContentRouteImport } from './routes/content'
 import { Route as ExpeditionsRouteImport } from './routes/expeditions'
 import { Route as MembersRouteImport } from './routes/members'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -20,6 +21,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApplyFormIdRouteImport } from './routes/apply_.$formId'
 import { Route as ApplyReviewsRouteImport } from './routes/apply_.reviews'
 import { Route as ReportsReviewsRouteImport } from './routes/reports_.reviews'
+import { Route as ApiPublicContentFileRouteImport } from './routes/api/public/content/$file'
 import { Route as ApiPublicDiscordCallbackRouteImport } from './routes/api/public/discord/callback'
 import { Route as ApiPublicDiscordLoginRouteImport } from './routes/api/public/discord/login'
 import { Route as ApiPublicDiscordLogoutRouteImport } from './routes/api/public/discord/logout'
@@ -35,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApplyRoute = ApplyRouteImport.update({
   id: '/apply',
   path: '/apply',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContentRoute = ContentRouteImport.update({
+  id: '/content',
+  path: '/content',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExpeditionsRoute = ExpeditionsRouteImport.update({
@@ -82,6 +89,11 @@ const ReportsReviewsRoute = ReportsReviewsRouteImport.update({
   path: '/reports/reviews',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicContentFileRoute = ApiPublicContentFileRouteImport.update({
+  id: '/api/public/content/$file',
+  path: '/api/public/content/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicDiscordCallbackRoute =
   ApiPublicDiscordCallbackRouteImport.update({
     id: '/api/public/discord/callback',
@@ -117,6 +129,7 @@ const ApiPublicGoogleLogoutRoute = ApiPublicGoogleLogoutRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
+  '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
   '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
@@ -126,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/apply/$formId': typeof ApplyFormIdRoute
   '/apply/reviews': typeof ApplyReviewsRoute
   '/reports/reviews': typeof ReportsReviewsRoute
+  '/api/public/content/$file': typeof ApiPublicContentFileRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
@@ -136,6 +150,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
+  '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
   '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
@@ -145,6 +160,7 @@ export interface FileRoutesByTo {
   '/apply/$formId': typeof ApplyFormIdRoute
   '/apply/reviews': typeof ApplyReviewsRoute
   '/reports/reviews': typeof ReportsReviewsRoute
+  '/api/public/content/$file': typeof ApiPublicContentFileRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
@@ -156,6 +172,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
+  '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
   '/members': typeof MembersRoute
   '/privacy': typeof PrivacyRoute
@@ -165,6 +182,7 @@ export interface FileRoutesById {
   '/apply_/$formId': typeof ApplyFormIdRoute
   '/apply_/reviews': typeof ApplyReviewsRoute
   '/reports_/reviews': typeof ReportsReviewsRoute
+  '/api/public/content/$file': typeof ApiPublicContentFileRoute
   '/api/public/discord/callback': typeof ApiPublicDiscordCallbackRoute
   '/api/public/discord/login': typeof ApiPublicDiscordLoginRoute
   '/api/public/discord/logout': typeof ApiPublicDiscordLogoutRoute
@@ -177,6 +195,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/apply'
+    | '/content'
     | '/expeditions'
     | '/members'
     | '/privacy'
@@ -186,6 +205,7 @@ export interface FileRouteTypes {
     | '/apply/$formId'
     | '/apply/reviews'
     | '/reports/reviews'
+    | '/api/public/content/$file'
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
@@ -196,6 +216,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/apply'
+    | '/content'
     | '/expeditions'
     | '/members'
     | '/privacy'
@@ -205,6 +226,7 @@ export interface FileRouteTypes {
     | '/apply/$formId'
     | '/apply/reviews'
     | '/reports/reviews'
+    | '/api/public/content/$file'
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
@@ -215,6 +237,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/apply'
+    | '/content'
     | '/expeditions'
     | '/members'
     | '/privacy'
@@ -224,6 +247,7 @@ export interface FileRouteTypes {
     | '/apply_/$formId'
     | '/apply_/reviews'
     | '/reports_/reviews'
+    | '/api/public/content/$file'
     | '/api/public/discord/callback'
     | '/api/public/discord/login'
     | '/api/public/discord/logout'
@@ -235,6 +259,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplyRoute: typeof ApplyRoute
+  ContentRoute: typeof ContentRoute
   ExpeditionsRoute: typeof ExpeditionsRoute
   MembersRoute: typeof MembersRoute
   PrivacyRoute: typeof PrivacyRoute
@@ -244,6 +269,7 @@ export interface RootRouteChildren {
   ApplyFormIdRoute: typeof ApplyFormIdRoute
   ApplyReviewsRoute: typeof ApplyReviewsRoute
   ReportsReviewsRoute: typeof ReportsReviewsRoute
+  ApiPublicContentFileRoute: typeof ApiPublicContentFileRoute
   ApiPublicDiscordCallbackRoute: typeof ApiPublicDiscordCallbackRoute
   ApiPublicDiscordLoginRoute: typeof ApiPublicDiscordLoginRoute
   ApiPublicDiscordLogoutRoute: typeof ApiPublicDiscordLogoutRoute
@@ -266,6 +292,13 @@ declare module '@tanstack/react-router' {
       path: '/apply'
       fullPath: '/apply'
       preLoaderRoute: typeof ApplyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/content': {
+      id: '/content'
+      path: '/content'
+      fullPath: '/content'
+      preLoaderRoute: typeof ContentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/expeditions': {
@@ -331,6 +364,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReportsReviewsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/content/$file': {
+      id: '/api/public/content/$file'
+      path: '/api/public/content/$file'
+      fullPath: '/api/public/content/$file'
+      preLoaderRoute: typeof ApiPublicContentFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/discord/callback': {
       id: '/api/public/discord/callback'
       path: '/api/public/discord/callback'
@@ -379,6 +419,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplyRoute: ApplyRoute,
+  ContentRoute: ContentRoute,
   ExpeditionsRoute: ExpeditionsRoute,
   MembersRoute: MembersRoute,
   PrivacyRoute: PrivacyRoute,
@@ -388,6 +429,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyFormIdRoute: ApplyFormIdRoute,
   ApplyReviewsRoute: ApplyReviewsRoute,
   ReportsReviewsRoute: ReportsReviewsRoute,
+  ApiPublicContentFileRoute: ApiPublicContentFileRoute,
   ApiPublicDiscordCallbackRoute: ApiPublicDiscordCallbackRoute,
   ApiPublicDiscordLoginRoute: ApiPublicDiscordLoginRoute,
   ApiPublicDiscordLogoutRoute: ApiPublicDiscordLogoutRoute,
