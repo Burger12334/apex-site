@@ -2,9 +2,10 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 
-export type ExpeditionServer = { url: string; host: string };
-// servers (Roblox private server links with who hosts each) and event_url (the Discord event) are optional extras.
-export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string; servers?: ExpeditionServer[]; event_url?: string };
+export type ExpeditionServer = { url: string };
+// guides and sherpas (who is running it), servers (Roblox private server links) and event_url (the Discord
+// event) are optional extras. leader is the older single-name field and is still shown when it is all there is.
+export type Expedition = { id: string; title: string; description: string; starts_at: string; leader: string; max_spots: number; created_at: string; guides?: string; sherpas?: string; servers?: ExpeditionServer[]; event_url?: string };
 export type ExpeditionView = Expedition & { climbers: string[]; joined: boolean; full: boolean };
 export type Climber = { id: string; discord_id: string; username: string; avatar_url: string; summits: number; note: string };
 
@@ -13,7 +14,8 @@ const expeditionInput = z.object({
   title: z.string().trim().min(1).max(120), description: z.string().trim().max(2000),
   starts_at: z.string().refine(v => !Number.isNaN(new Date(v).getTime()), 'Enter a valid date and time'),
   leader: z.string().trim().max(80), max_spots: z.number().int().min(0).max(500),
-  servers: z.array(z.object({ url: z.string().trim().regex(/^https:\/\/(www\.)?roblox\.com\/\S+$/, 'Server links must be roblox.com links'), host: z.string().trim().max(60) })).max(8).default([]),
+  guides: z.string().trim().max(200).default(''), sherpas: z.string().trim().max(200).default(''),
+  servers: z.array(z.object({ url: z.string().trim().regex(/^https:\/\/(www\.)?roblox\.com\/\S+$/, 'Server links must be roblox.com links') })).max(8).default([]),
   event_url: z.string().trim().regex(/^(https:\/\/(www\.)?discord\.com\/events\/\d+\/\d+)?$/, 'Paste the Discord event link (discord.com/events/...)').default(''),
 });
 

@@ -7,7 +7,7 @@ export const NOTIFY_EVENTS = [
   { key: 'report_closed', group: 'channel', on: false, roles: true, label: 'Report resolved or dismissed', hint: 'Posted to the reports channel with the decision and the reason.' },
   { key: 'app_new', group: 'channel', on: true, roles: false, label: 'New application', hint: 'Posted to the application’s channel. Ping roles are set per application in the Applications card.' },
   { key: 'app_decided', group: 'channel', on: false, roles: true, label: 'Application accepted or denied', hint: 'Posted to the application’s channel with the outcome.' },
-  { key: 'expedition_new', group: 'channel', on: true, roles: true, label: 'New expedition', hint: 'Announced in the expeditions channel.' },
+  { key: 'expedition_new', group: 'channel', on: true, roles: false, label: 'Expedition announcements', hint: 'Posted in the expeditions channel. Pings the server’s Expedition Pings role by itself.' },
   { key: 'dm_chat', group: 'dm', on: true, roles: false, label: 'DM the reporter when supervision replies', hint: 'A reminder with a link to their report, not the reply itself.' },
   { key: 'dm_report', group: 'dm', on: true, roles: false, label: 'DM the reporter when their report is closed', hint: 'Tells them it was resolved or dismissed, with the reason.' },
   { key: 'dm_app', group: 'dm', on: true, roles: false, label: 'DM the applicant when they are accepted or denied', hint: 'Includes the reason you give.' },

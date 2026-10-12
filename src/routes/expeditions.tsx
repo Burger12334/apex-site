@@ -45,13 +45,14 @@ function Expeditions() {
   }
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault(); const form = e.currentTarget; const f = new FormData(form);
-    const input = { title: String(f.get('title')).trim(), description: String(f.get('description')).trim(), starts_at: new Date(String(f.get('starts_at'))).toISOString(), leader: String(f.get('leader')).trim(), max_spots: Number(f.get('max_spots') || 0) };
-    // One server per line: the Roblox link first, then the host's name.
-    const servers = String(f.get('servers') ?? '').split('\n').map(line => line.trim()).filter(Boolean).map(line => { const [url = '', ...host] = line.split(/\s+/); return { url, host: host.join(' ') }; });
+    const input = { title: String(f.get('title')).trim(), description: String(f.get('description')).trim(), starts_at: new Date(String(f.get('starts_at'))).toISOString(), leader: String(f.get('leader') ?? '').trim(), max_spots: Number(f.get('max_spots') || 0) };
+    // One Roblox server link per line.
+    const servers = String(f.get('servers') ?? '').split(/\s+/).map(url => url.trim()).filter(Boolean).map(url => ({ url }));
+    const guides = String(f.get('guides') ?? '').trim(); const sherpas = String(f.get('sherpas') ?? '').trim();
     const event_url = String(f.get('event_url') ?? '').trim();
     let announced = '';
     const ok = await act(async () => {
-      if (isLocal) announced = (await createLocal({ data: { ...input, servers, event_url } })).announced;
+      if (isLocal) announced = (await createLocal({ data: { ...input, guides, sherpas, servers, event_url } })).announced;
       else { const { data, error } = await tables.from('expeditions').insert(input).select('id').single(); if (error) throw error; announced = (await announce({ data: data.id as string })).announced; logStaff('Expedition created', [input.title, `Announcement: ${announced}`]); }
     }, 'Expedition created.');
     if (ok) { setNotice(`Expedition created. Discord announcement: ${announced}.`); form.reset(); setCreating(false); }
@@ -84,9 +85,10 @@ function Expeditions() {
             <header className="event-top">{when(ex.starts_at, started)}<span className="event-count" title="Signed up"><Users />{ex.climbers.length}{ex.max_spots > 0 ? ` / ${ex.max_spots}` : ''}</span></header>
             <h3>{ex.title}</h3>
             {ex.description && <p className="event-desc">{ex.description}</p>}
-            {!!ex.servers?.length && <ul className="event-servers">{ex.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong>{s.host && <small>{s.host}</small>}</span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
+            {!!ex.servers?.length && <ul className="event-servers">{ex.servers.map((s, i) => <li key={s.url}><span><strong>Server {i + 1}</strong></span><a className="event-join small" href={s.url} target="_blank" rel="noreferrer">Join server</a></li>)}</ul>}
+            {(ex.guides || ex.sherpas) && <dl className="event-crew">{ex.guides && <div><dt>Guides</dt><dd>{ex.guides}</dd></div>}{ex.sherpas && <div><dt>Sherpas</dt><dd>{ex.sherpas}</dd></div>}</dl>}
             {ex.climbers.length > 0 && <p className="event-climbers">{ex.climbers.map(name => <span key={name}>@{name}</span>)}</p>}
-            <footer className="event-foot">{host(ex.leader ? `Led by ${ex.leader}` : 'Expedition')}
+            <footer className="event-foot">{host(!ex.guides && !ex.sherpas && ex.leader ? `Led by ${ex.leader}` : 'Expedition')}
               <div className="event-buttons">
                 {ex.event_url && <a className="event-join ghost" href={ex.event_url} target="_blank" rel="noreferrer"><DiscordIcon />Discord event</a>}
                 {!me.data ? <button className="event-join" onClick={linkDiscord}>Link Discord to join</button>
@@ -106,9 +108,10 @@ function Expeditions() {
       <form className="editor-form" onSubmit={create}>
         <label>Name<input name="title" required maxLength={120} placeholder="Summit push from Camp II" /></label>
         <label>Date and time<input name="starts_at" type="datetime-local" required /></label>
-        <div className="form-columns"><label>Leader<input name="leader" maxLength={80} placeholder="Who is leading" /></label><label>Spots (0 = no limit)<input name="max_spots" type="number" min={0} max={500} defaultValue={0} /></label></div>
+        {isLocal ? <div className="form-columns"><label>Guides<input name="guides" maxLength={200} placeholder="Names, separated by commas" /></label><label>Sherpas<input name="sherpas" maxLength={200} placeholder="Names, separated by commas" /></label></div> : <label>Leader<input name="leader" maxLength={80} placeholder="Who is leading" /></label>}
+        <label>Spots (0 = no limit)<input name="max_spots" type="number" min={0} max={500} defaultValue={0} /></label>
         <label>Details<textarea name="description" rows={4} maxLength={2000} placeholder="Meeting point, what to bring, expected length." /></label>
-        {isLocal && <><label>Roblox servers<textarea name="servers" rows={3} placeholder={'https://www.roblox.com/share?code=...&type=Server HostName\nOne server per line: the link, a space, then who is hosting'} /></label>
+        {isLocal && <><label>Roblox servers<textarea name="servers" rows={3} placeholder={'One Roblox server link per line\nhttps://www.roblox.com/share?code=...&type=Server'} /></label>
         <label>Discord event link<input name="event_url" list="discord-event-links" placeholder="https://discord.com/events/..." /><datalist id="discord-event-links">{events.map(ev => <option key={ev.id} value={ev.url}>{ev.name}</option>)}</datalist></label></>}
         <Button disabled={busy}><Plus />{busy ? 'Creating…' : 'Create expedition'}</Button>
       </form>

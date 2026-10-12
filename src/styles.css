@@ -1043,3 +1043,30 @@ main:has(.focus-page) ~ .editor-bottom .editor-bottom-label { color: oklch(1 0 0
 .event-staff button.danger{margin-left:auto;background:transparent;color:#f23f42}
 .event-staff button.danger:hover{background:rgba(242,63,66,.12)}
 .event-staff svg{width:15px;height:15px}
+
+.event-crew{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin:2px 0 0}
+.event-crew > div{padding:8px 10px;border-radius:8px;background:#232428}
+.event-crew dt{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#b5bac1}
+.event-crew dd{margin:2px 0 0;font-size:14px;color:#f2f3f5;overflow-wrap:anywhere}
+
+/* ---------- Every staff panel: a floating rounded card in the middle of the screen, like the report form ---------- */
+.editor-dialog, .editor-dialog.review-panel { left: 50%; right: auto; top: 50%; --tw-translate-x: 0; --tw-translate-y: 0; translate: -50% -50%; width: min(640px, calc(100vw - 24px)); height: auto; max-height: min(88dvh, 900px); padding: 30px 32px 32px; border: 1px solid oklch(1 0 0 / .65); border-radius: 36px; background: var(--card); overflow-y: auto; scrollbar-width: thin; box-shadow: 0 44px 110px oklch(.1 .05 265 / .6), 0 0 120px color-mix(in oklch, var(--glacier) 42%, transparent), inset 0 1px 0 oklch(1 0 0); animation: panel-float-in .45s cubic-bezier(.2, .8, .2, 1); }
+.editor-dialog.review-panel { width: min(780px, calc(100vw - 24px)); box-shadow: 0 44px 110px oklch(.1 .05 265 / .6), 0 0 120px color-mix(in oklch, var(--violet) 42%, transparent), inset 0 1px 0 oklch(1 0 0); }
+.editor-dialog[data-state='closed'] { animation: panel-float-out .18s ease-in forwards; }
+@keyframes panel-float-in { from { opacity: 0; translate: -50% calc(-50% + 26px); } to { opacity: 1; translate: -50% -50%; } }
+@keyframes panel-float-out { to { opacity: 0; translate: -50% calc(-50% + 14px); } }
+.editor-dialog > h2, .editor-dialog .panel-title, .editor-dialog .editor-title { display: flex; align-items: center; gap: 10px; margin: 0; padding-right: 36px; font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1.12; }
+.editor-dialog > h2 + p { margin: 6px 0 0; padding-bottom: 18px; border-bottom: 1px solid var(--border); font-size: 14px; line-height: 1.7; color: var(--muted-foreground); }
+.editor-dialog > button[class*='absolute'] { top: 24px; right: 24px; }
+.editor-dialog .editor-form label { font-weight: 600; }
+.editor-dialog .editor-form input, .editor-dialog .editor-form textarea, .editor-dialog .editor-form select { border-radius: 14px; }
+.editor-dialog .editor-form > button, .editor-dialog form > button[type='submit'] { border-radius: 999px; }
+.editor-dialog .app-edit, .editor-dialog .editor-list > div { padding: 16px; border: 1px solid var(--border); border-radius: 20px; background: color-mix(in oklch, var(--muted) 60%, var(--card)); }
+.review-panel .review-actions { bottom: -32px; margin: 26px -32px -32px; padding: 16px 32px; border-radius: 0 0 36px 36px; }
+.settings-panel { border-radius: 36px; }
+@media (max-width: 640px) {
+  .editor-dialog, .editor-dialog.review-panel { width: calc(100vw - 16px); max-height: 92dvh; padding: 22px 18px 26px; border-radius: 28px; }
+  .editor-dialog > h2, .editor-dialog .panel-title, .editor-dialog .editor-title { font-size: 23px; }
+  .review-panel .review-actions { bottom: -26px; margin: 22px -18px -26px; padding: 14px 18px; border-radius: 0 0 28px 28px; }
+}
+@media (prefers-reduced-motion: reduce) { .editor-dialog, .editor-dialog[data-state='closed'] { animation: none; } }

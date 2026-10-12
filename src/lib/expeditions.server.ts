@@ -60,18 +60,20 @@ export function expeditionAnnouncement(expedition: Expedition, origin: string) {
 }
 // Local test mode: posts to the expeditions webhook from the Discord settings. False when none is set.
 // Own storage: the announcement as a plain message, the way staff write it by hand: a big title, the ping,
-// each server link with its host underneath, then the Discord event and invite links. Discord turns the event
+// each server link, then the Discord event and invite links. Discord turns the event
 // link into its own event card with the Join button.
 export function expeditionMessage(expedition: Expedition, origin: string, kind: 'new' | 'starting', roles: string[], invite: string) {
   const at = Math.floor(new Date(expedition.starts_at).getTime() / 1000);
-  const servers = (expedition.servers ?? []).map((s, i) => [`Server ${i + 1}: ${s.url}`, s.host].filter(Boolean).join('\n'));
+  const servers = (expedition.servers ?? []).map((s, i) => `Server ${i + 1}: ${s.url}`);
   return [
     `# ${expedition.title}${kind === 'starting' ? ' Starting Now!' : ''}`,
     roles.map(r => `<@&${r}>`).join(' '),
     kind === 'new' && `Starts <t:${at}:F> (<t:${at}:R>)`,
-    kind === 'new' && expedition.leader && `Led by ${expedition.leader}`,
+    kind === 'new' && expedition.guides && `Guides: ${expedition.guides}`,
+    kind === 'new' && expedition.sherpas && `Sherpas: ${expedition.sherpas}`,
+    kind === 'new' && !expedition.guides && !expedition.sherpas && expedition.leader && `Led by ${expedition.leader}`,
     kind === 'new' && expedition.description && expedition.description.slice(0, 1200),
-    servers.join('\n\n'),
+    servers.join('\n'),
     expedition.event_url,
     invite,
     kind === 'new' && `Sign up: ${origin}/expeditions`,
@@ -88,12 +90,24 @@ async function discordInvite() {
     return response.ok ? ((await response.json()) as { discord_url?: string }[])[0]?.discord_url ?? '' : '';
   } catch { return ''; }
 }
+let pingRoles: { at: number; ids: string[] } | undefined;
+async function expeditionPingRoles() {
+  if (pingRoles && Date.now() - pingRoles.at < 600000) return pingRoles.ids;
+  try {
+    const { discordFetch, roleGuild } = await import('./community.server');
+    const all = await discordFetch(`guilds/${await roleGuild()}/roles`) as { id: string; name: string }[];
+    pingRoles = { at: Date.now(), ids: all.filter(r => /^expedition pings?$/i.test(r.name.trim())).map(r => r.id) };
+    return pingRoles.ids;
+  } catch { return pingRoles?.ids ?? []; }
+}
 export async function announceLocally(expedition: Expedition, origin: string, kind: 'new' | 'starting' = 'new') {
   const config = await (await local()).readLocalDiscord();
   const rule = (await import('./notify')).notifyRule(config, 'expedition_new');
   const url = config.events_webhook_url;
   if (!url || !rule.on) return false;
-  const body = { content: expeditionMessage(expedition, origin, kind, rule.roles, await discordInvite()), allowed_mentions: { parse: [], roles: rule.roles } };
+  // Expeditions always ping the server's "Expedition Pings" role (found by name), unless quiet mode is on.
+  const roles = config.quiet ? [] : await expeditionPingRoles();
+  const body = { content: expeditionMessage(expedition, origin, kind, roles, await discordInvite()), allowed_mentions: { parse: [], roles } };
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!response.ok) throw new Error(`Discord [${response.status}]: ${await response.text()}`);
   return true;
