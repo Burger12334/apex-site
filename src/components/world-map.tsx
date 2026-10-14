@@ -43,7 +43,10 @@ export function WorldMap({ pins, placing, draft, focus, onPick, onDelete, canDel
       (window as unknown as { L: L }).L = L;
       await import('leaflet.markercluster');
       if (cancelled || !box.current || api.current) return;
-      const map = L.map(box.current, { center: [25, 10], zoom: 2, minZoom: 2, maxBounds: [[-85, -200], [85, 200]], worldCopyJump: true, zoomControl: false });
+      const map = L.map(box.current, { center: [25, 10], zoom: 2, minZoom: 2, maxBounds: [[-85, -200], [85, 200]], worldCopyJump: true, zoomControl: false,
+        // No fade-in for map pictures: a fade waits on the browser's animation timer, and when that timer stalls the
+        // pictures of a newly chosen map style stayed invisible until the page was refreshed.
+        fadeAnimation: false });
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       map.attributionControl.setPrefix('');
       // Place names sit above the satellite pictures but below the pins.
@@ -121,6 +124,11 @@ export function WorldMap({ pins, placing, draft, focus, onPick, onDelete, canDel
     const a = api.current; if (!a || a.style === mapStyle) return;
     a.map.removeLayer(a.layers[a.style]); a.layers[mapStyle].addTo(a.map); a.style = mapStyle;
     a.map.setMaxZoom(mapStyle === 'terrain' ? 17 : 18);
+    // Draw the new style straight away for the current view.
+    a.map.invalidateSize();
+    const chosen = a.layers[mapStyle];
+    if (chosen instanceof a.L.LayerGroup) chosen.eachLayer(l => { if (l instanceof a.L.TileLayer) l.redraw(); });
+    else if (chosen instanceof a.L.TileLayer) chosen.redraw();
   }, [mapStyle]);
 
   return <>
