@@ -118,6 +118,12 @@ export function WorldMap({ pins, placing, draft, focus, onPick, onDelete, canDel
   }, [focus]);
 
   useEffect(() => { box.current?.classList.toggle('placing', placing); }, [placing]);
+  // The style class is set directly on the element: letting React rewrite className would wipe the classes the map
+  // library adds to this same element, which squashed every map picture and left the map blank until a refresh.
+  useEffect(() => {
+    const el = box.current; if (!el) return;
+    for (const s of ['satellite', 'terrain', 'streets']) el.classList.toggle(`style-${s}`, s === mapStyle);
+  }, [mapStyle]);
 
   // Switch between satellite, terrain and street maps. The new style goes on top and the old one stays underneath
   // until the new pictures have arrived (6 seconds at most), so the map never sits blank while a slower map server
@@ -146,7 +152,7 @@ export function WorldMap({ pins, placing, draft, focus, onPick, onDelete, canDel
   }, [mapStyle]);
 
   return <>
-    <div ref={box} className={`world-map style-${mapStyle}`} role="application" aria-label="World map of places Apex members have pinned" />
+    <div ref={box} className="world-map" role="application" aria-label="World map of places Apex members have pinned" />
     <span className="map-readout" ref={readout} aria-hidden="true">25.00° N  ·  10.00° E</span>
   </>;
 }
