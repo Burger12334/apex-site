@@ -77,7 +77,10 @@ export const votePostcard = createServerFn({ method: 'POST' }).inputValidator((d
   if (entry.month !== monthKey()) throw new Error('Voting for that month has closed.');
   if (entry.author_id === me.id) throw new Error('You cannot vote for your own photo.');
   const had = entry.votes.includes(me.id);
+  const moved = !had ? entries.find(e => e.month === entry.month && e.id !== entry.id && e.votes.includes(me.id)) : undefined;
   await writeLocalList('postcards', entries.map(e => e.month !== entry.month ? e : { ...e, votes: e.id === entry.id && !had ? [...e.votes.filter(v => v !== me.id), me.id] : e.votes.filter(v => v !== me.id) }));
+  const { logEvent, LOG_COLORS } = await import('./audit-log.server');
+  await logEvent({ title: had ? 'Postcard vote taken back' : moved ? 'Postcard vote moved' : 'Postcard vote', color: LOG_COLORS.info, lines: [`**Voter** <@${me.id}> (${me.username})`, `**Photo** ${entry.place} by <@${entry.author_id}> (${entry.author_name})`, moved && `**Moved from** ${moved.place} by ${moved.author_name}`, `**Votes now** ${had ? entry.votes.length - 1 : entry.votes.length + 1}`] });
   return { voted: !had };
 });
 

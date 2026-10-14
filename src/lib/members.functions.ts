@@ -25,7 +25,11 @@ export const getMembers = createServerFn({ method: 'GET' }).handler(async () => 
 export const searchMembers = createServerFn({ method: 'POST' }).inputValidator((d) => z.string().trim().min(2).max(40).parse(d)).handler(async ({ data }) => {
   if (!(await viewer()).ok) return [];
   const { findMembers } = await import('./members.server');
-  try { return await findMembers(data); } catch { return []; }
+  let found: Awaited<ReturnType<typeof findMembers>> = [];
+  try { found = await findMembers(data); } catch { /* shown as no results */ }
+  const { visitorLogging, logEvent, LOG_COLORS, actorName } = await import('./audit-log.server');
+  if (await visitorLogging()) await logEvent({ title: 'Member search', color: LOG_COLORS.info, lines: [`**Searched for** ${data}`, `**Results** ${found.length}`], by: await actorName('A visitor') });
+  return found;
 });
 
 // Turns a Discord user ID into that person's name and picture, for the ID boxes around the site.

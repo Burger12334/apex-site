@@ -173,6 +173,8 @@ export const testLocalDiscord = createServerFn({ method: 'POST' }).handler(async
   await (await import('./staff.server')).requireStaff();
   const { sendLocalTestAlert } = await import('./community.server'); const { readSession, currentOrigin } = await import('./discord.server');
   if (!await sendLocalTestAlert(await readSession(), currentOrigin())) throw new Error('Add a webhook URL and save first.');
+  const { logEvent, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Test report alert sent', lines: ['A sample report card was posted to the reports channel. No report was created.'], by: await actorName() });
 });
 
 // Shown on the report form as soon as an ID is typed, so the reporter can check they have the right person.
@@ -245,6 +247,8 @@ export const testLocalApplicationAlert = createServerFn({ method: 'POST' }).hand
   await (await import('./staff.server')).requireStaff();
   const { sendLocalTestApplicationAlert } = await import('./community.server'); const { readSession, currentOrigin } = await import('./discord.server');
   if (!await sendLocalTestApplicationAlert(await readSession(), currentOrigin())) throw new Error('Add a webhook URL and save first.');
+  const { logEvent, actorName } = await import('./audit-log.server');
+  await logEvent({ title: 'Test application alert sent', lines: ['A sample application card was posted to the applications channel. No application was created.'], by: await actorName() });
 });
 
 // What the current visitor may do: `store` is true when the site keeps its own data (no database service key),
