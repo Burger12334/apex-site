@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useServerFn } from '@tanstack/react-start';
-import { useMemo, useState, type FormEvent } from 'react';
-import { Globe2, Loader2, MapPin, MapPinned, Search, Users, X } from 'lucide-react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Globe2, Layers, Loader2, MapPin, MapPinned, Mountain, Search, Satellite, Stamp, Users, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ApplyShell, DiscordIcon, apexQuery, useApplyAccess } from '@/components/apply-shell';
 import { DiscordAvatar } from '@/components/community';
 import { HeroBackdrop } from '@/components/hero-slides';
-import { WorldMap } from '@/components/world-map';
+import { WorldMap, type MapStyle } from '@/components/world-map';
 import { addMapPin, deleteMapPin, getPins, type PinView } from '@/lib/worldmap.functions';
 
 export const Route = createFileRoute('/map')({
@@ -43,6 +43,10 @@ function WorldMapPage() {
   const [place, setPlace] = useState(''); const [edited, setEdited] = useState(false); const [naming, setNaming] = useState(false); const [busy, setBusy] = useState(false);
   const [focus, setFocus] = useState<{ lat: number; lng: number; id?: string } | null>(null);
   const [q, setQ] = useState(''); const [results, setResults] = useState<Found[]>([]); const [searching, setSearching] = useState(false);
+  // The chosen map look is remembered in this browser.
+  const [mapStyle, setMapStyle] = useState<MapStyle>('satellite');
+  useEffect(() => { try { const saved = localStorage.getItem('apex-map-style'); if (saved === 'satellite' || saved === 'terrain' || saved === 'streets') setMapStyle(saved); } catch { /* default look */ } }, []);
+  const chooseStyle = (s: MapStyle) => { setMapStyle(s); try { localStorage.setItem('apex-map-style', s); } catch { /* not remembered */ } };
 
   const stats = useMemo(() => ({ pins: pins.length, countries: new Set(pins.map(p => country(p.place)).filter(Boolean)).size, climbers: new Set(pins.map(p => p.author_id)).size }), [pins]);
   const mine = pins.filter(p => p.mine).length;
@@ -81,11 +85,22 @@ function WorldMapPage() {
       <div className="eyebrow"><span className="line" />APEX WAS HERE</div>
       <h1 className="apply-title">World Map</h1>
       <p className="apply-lede">Every place the Apex crew has been. Drop a pin where you have climbed, travelled or flown the Apex flag, and see everyone else’s.</p>
-      <div className="map-stats"><span><MapPin /><strong>{stats.pins}</strong> {stats.pins === 1 ? 'pin' : 'pins'}</span><span><Globe2 /><strong>{stats.countries}</strong> {stats.countries === 1 ? 'country' : 'countries'}</span><span><Users /><strong>{stats.climbers}</strong> {stats.climbers === 1 ? 'climber' : 'climbers'}</span></div>
     </div></section>
     <section className="site-width map-section">
-      <div className={`map-shell ${placing ? 'is-placing' : ''}`}>
-        <WorldMap pins={pins} placing={placing} draft={draft} focus={focus} onPick={p => void pick(p)} onDelete={p => void takeDown(p)} canDelete={p => p.mine || !!data.data?.staff} />
+      <div className={`map-console ${placing ? 'is-placing' : ''}`}>
+      <header className="map-console-head">
+        <div className="map-console-title"><span className="live-dot" aria-hidden="true" /><div><small>LIVE MAP</small><strong>Apex was here</strong></div></div>
+        <div className="map-console-stats">
+          <span><MapPin /><strong>{stats.pins}</strong>{stats.pins === 1 ? 'pin' : 'pins'}</span>
+          <span><Globe2 /><strong>{stats.countries}</strong>{stats.countries === 1 ? 'country' : 'countries'}</span>
+          <span><Users /><strong>{stats.climbers}</strong>{stats.climbers === 1 ? 'climber' : 'climbers'}</span>
+        </div>
+        <div className="map-style-switch" role="radiogroup" aria-label="Map style">
+          {([['satellite', 'Satellite', Satellite], ['terrain', 'Terrain', Mountain], ['streets', 'Streets', Layers]] as const).map(([key, label, Icon]) => <button key={key} type="button" role="radio" aria-checked={mapStyle === key} className={mapStyle === key ? 'on' : ''} onClick={() => chooseStyle(key)}><Icon />{label}</button>)}
+        </div>
+      </header>
+      <div className="map-shell">
+        <WorldMap mapStyle={mapStyle} pins={pins} placing={placing} draft={draft} focus={focus} onPick={p => void pick(p)} onDelete={p => void takeDown(p)} canDelete={p => p.mine || !!data.data?.staff} />
         <div className="map-overlay top">
           <form className="map-search" onSubmit={search} role="search"><Search /><input value={q} onChange={e => { setQ(e.target.value); setResults([]); }} placeholder="Search a city, mountain or country" aria-label="Search the map" />{searching && <Loader2 className="spin" />}</form>
           {results.length > 0 && <ul className="map-results">{results.map(r => <li key={`${r.lat},${r.lng}`}><button type="button" onClick={() => go(r)}><MapPin />{r.label}</button></li>)}</ul>}
@@ -104,7 +119,11 @@ function WorldMapPage() {
           <div className="map-form-actions"><Button type="button" variant="ghost" onClick={stopPlacing}>Cancel</Button><Button disabled={busy || naming || place.trim().length < 2}><MapPin />{busy ? 'Saving…' : 'Save pin'}</Button></div>
         </form>}
       </div>
-      {data.data?.linked && <p className="map-mine">You have pinned <strong>{mine}</strong> {mine === 1 ? 'place' : 'places'}{data.data.limit ? ` (up to ${data.data.limit})` : ''}. Click your own pin to remove it.</p>}
+      <footer className="map-console-foot">
+        <span>{data.data?.linked ? <>You have pinned <strong>{mine}</strong> {mine === 1 ? 'place' : 'places'}{data.data.limit ? ` of ${data.data.limit}` : ''}. Click your own pin to remove it.</> : 'Link Discord to put your own pins on the map.'}</span>
+        <span className="map-legend"><span><i className="legend-pin" />Member pin</span><span><i className="legend-pin gold" /><Stamp />From Postcards</span><span><i className="legend-cluster">3</i>Pins nearby</span></span>
+      </footer>
+      </div>
       <div className="section-header map-latest-head"><div><div className="eyebrow">LATEST PINS</div><h2>Where Apex has been</h2></div></div>
       {data.isLoading ? <div className="apply-card review-empty"><p>Loading the map…</p></div>
         : pins.length === 0 ? <div className="apply-card review-empty"><Globe2 /><p>No pins yet. Be the first to put Apex on the map.</p></div>
