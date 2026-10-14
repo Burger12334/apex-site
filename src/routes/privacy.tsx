@@ -47,6 +47,11 @@ const SECTIONS: LegalSection[] = [
       <li><strong>Private staff channels on Discord:</strong> when you submit an application or a report, a summary (including your answers or the report details) is posted to a staff-only channel, and the activity log is posted to another.</li>
     </ul>
   </> },
+  { title: 'Postcards, the World Map and the Content page', body: <>
+    <p>Photos you send to Apex Postcards or the Content page are shown publicly on the site with your Discord name and picture. Postcard entries are checked by staff before they appear. Please do not send photos that show faces or anything that reveals where someone lives.</p>
+    <p>Pins on the Apex World Map are public and show your Discord name and picture, the place name and any note you add. A pin’s position is rounded to about a kilometre. You can remove your own pins and entries at any time; staff can remove any of them.</p>
+    <p>When you search for a place or drop a pin, the place name is looked up with OpenStreetMap’s free search service, which receives what you typed or the point you picked.</p>
+  </> },
   { title: 'Messages from the Apex bot', body: <>
     <p>The Apex Discord bot may send you a direct message when your application is accepted or denied, when supervision replies to or closes your report, and for similar updates. You can block these in your Discord privacy settings; the same information is shown on the site.</p>
   </> },

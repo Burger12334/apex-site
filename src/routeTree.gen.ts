@@ -13,7 +13,9 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplyRouteImport } from './routes/apply'
 import { Route as ContentRouteImport } from './routes/content'
 import { Route as ExpeditionsRouteImport } from './routes/expeditions'
+import { Route as MapRouteImport } from './routes/map'
 import { Route as MembersRouteImport } from './routes/members'
+import { Route as PostcardsRouteImport } from './routes/postcards'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RulesRouteImport } from './routes/rules'
@@ -28,6 +30,7 @@ import { Route as ApiPublicDiscordLogoutRouteImport } from './routes/api/public/
 import { Route as ApiPublicGoogleCallbackRouteImport } from './routes/api/public/google/callback'
 import { Route as ApiPublicGoogleLoginRouteImport } from './routes/api/public/google/login'
 import { Route as ApiPublicGoogleLogoutRouteImport } from './routes/api/public/google/logout'
+import { Route as ApiPublicPostcardsFileRouteImport } from './routes/api/public/postcards/$file'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -49,9 +52,19 @@ const ExpeditionsRoute = ExpeditionsRouteImport.update({
   path: '/expeditions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MapRoute = MapRouteImport.update({
+  id: '/map',
+  path: '/map',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MembersRoute = MembersRouteImport.update({
   id: '/members',
   path: '/members',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PostcardsRoute = PostcardsRouteImport.update({
+  id: '/postcards',
+  path: '/postcards',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -125,13 +138,20 @@ const ApiPublicGoogleLogoutRoute = ApiPublicGoogleLogoutRouteImport.update({
   path: '/api/public/google/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPostcardsFileRoute = ApiPublicPostcardsFileRouteImport.update({
+  id: '/api/public/postcards/$file',
+  path: '/api/public/postcards/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/map': typeof MapRoute
   '/members': typeof MembersRoute
+  '/postcards': typeof PostcardsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -146,13 +166,16 @@ export interface FileRoutesByFullPath {
   '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
   '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
+  '/api/public/postcards/$file': typeof ApiPublicPostcardsFileRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/apply': typeof ApplyRoute
   '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/map': typeof MapRoute
   '/members': typeof MembersRoute
+  '/postcards': typeof PostcardsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -167,6 +190,7 @@ export interface FileRoutesByTo {
   '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
   '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
+  '/api/public/postcards/$file': typeof ApiPublicPostcardsFileRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -174,7 +198,9 @@ export interface FileRoutesById {
   '/apply': typeof ApplyRoute
   '/content': typeof ContentRoute
   '/expeditions': typeof ExpeditionsRoute
+  '/map': typeof MapRoute
   '/members': typeof MembersRoute
+  '/postcards': typeof PostcardsRoute
   '/privacy': typeof PrivacyRoute
   '/reports': typeof ReportsRoute
   '/rules': typeof RulesRoute
@@ -189,6 +215,7 @@ export interface FileRoutesById {
   '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/google/login': typeof ApiPublicGoogleLoginRoute
   '/api/public/google/logout': typeof ApiPublicGoogleLogoutRoute
+  '/api/public/postcards/$file': typeof ApiPublicPostcardsFileRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -197,7 +224,9 @@ export interface FileRouteTypes {
     | '/apply'
     | '/content'
     | '/expeditions'
+    | '/map'
     | '/members'
+    | '/postcards'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -212,13 +241,16 @@ export interface FileRouteTypes {
     | '/api/public/google/callback'
     | '/api/public/google/login'
     | '/api/public/google/logout'
+    | '/api/public/postcards/$file'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/apply'
     | '/content'
     | '/expeditions'
+    | '/map'
     | '/members'
+    | '/postcards'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -233,13 +265,16 @@ export interface FileRouteTypes {
     | '/api/public/google/callback'
     | '/api/public/google/login'
     | '/api/public/google/logout'
+    | '/api/public/postcards/$file'
   id:
     | '__root__'
     | '/'
     | '/apply'
     | '/content'
     | '/expeditions'
+    | '/map'
     | '/members'
+    | '/postcards'
     | '/privacy'
     | '/reports'
     | '/rules'
@@ -254,6 +289,7 @@ export interface FileRouteTypes {
     | '/api/public/google/callback'
     | '/api/public/google/login'
     | '/api/public/google/logout'
+    | '/api/public/postcards/$file'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -261,7 +297,9 @@ export interface RootRouteChildren {
   ApplyRoute: typeof ApplyRoute
   ContentRoute: typeof ContentRoute
   ExpeditionsRoute: typeof ExpeditionsRoute
+  MapRoute: typeof MapRoute
   MembersRoute: typeof MembersRoute
+  PostcardsRoute: typeof PostcardsRoute
   PrivacyRoute: typeof PrivacyRoute
   ReportsRoute: typeof ReportsRoute
   RulesRoute: typeof RulesRoute
@@ -276,6 +314,7 @@ export interface RootRouteChildren {
   ApiPublicGoogleCallbackRoute: typeof ApiPublicGoogleCallbackRoute
   ApiPublicGoogleLoginRoute: typeof ApiPublicGoogleLoginRoute
   ApiPublicGoogleLogoutRoute: typeof ApiPublicGoogleLogoutRoute
+  ApiPublicPostcardsFileRoute: typeof ApiPublicPostcardsFileRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -308,11 +347,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExpeditionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/map': {
+      id: '/map'
+      path: '/map'
+      fullPath: '/map'
+      preLoaderRoute: typeof MapRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/members': {
       id: '/members'
       path: '/members'
       fullPath: '/members'
       preLoaderRoute: typeof MembersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/postcards': {
+      id: '/postcards'
+      path: '/postcards'
+      fullPath: '/postcards'
+      preLoaderRoute: typeof PostcardsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -413,6 +466,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicGoogleLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/postcards/$file': {
+      id: '/api/public/postcards/$file'
+      path: '/api/public/postcards/$file'
+      fullPath: '/api/public/postcards/$file'
+      preLoaderRoute: typeof ApiPublicPostcardsFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -421,7 +481,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApplyRoute: ApplyRoute,
   ContentRoute: ContentRoute,
   ExpeditionsRoute: ExpeditionsRoute,
+  MapRoute: MapRoute,
   MembersRoute: MembersRoute,
+  PostcardsRoute: PostcardsRoute,
   PrivacyRoute: PrivacyRoute,
   ReportsRoute: ReportsRoute,
   RulesRoute: RulesRoute,
@@ -436,6 +498,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicGoogleCallbackRoute: ApiPublicGoogleCallbackRoute,
   ApiPublicGoogleLoginRoute: ApiPublicGoogleLoginRoute,
   ApiPublicGoogleLogoutRoute: ApiPublicGoogleLogoutRoute,
+  ApiPublicPostcardsFileRoute: ApiPublicPostcardsFileRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -9,8 +9,11 @@ const entries = [];
 for (const name of await readdir(dir)) {
   if (name.endsWith('.json') && name !== 'kv-bulk.json') entries.push({ key: name, value: await readFile(`${dir}/${name}`, 'utf8') });
 }
-for (const name of await readdir(`${dir}/proof`).catch(() => [])) {
-  entries.push({ key: `proof/${name}`, value: (await readFile(`${dir}/proof/${name}`)).toString('base64'), base64: true });
+// Pictures: report proof, Content page posts and Apex Postcards entries and designs.
+for (const folder of ['proof', 'content', 'postcards']) {
+  for (const name of await readdir(`${dir}/${folder}`).catch(() => [])) {
+    entries.push({ key: `${folder}/${name}`, value: (await readFile(`${dir}/${folder}/${name}`)).toString('base64'), base64: true });
+  }
 }
 await writeFile(`${dir}/kv-bulk.json`, JSON.stringify(entries));
 console.log(`Wrote ${dir}/kv-bulk.json with ${entries.length} records: ${entries.map(e => e.key).join(', ')}`);
