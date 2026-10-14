@@ -119,16 +119,30 @@ export function WorldMap({ pins, placing, draft, focus, onPick, onDelete, canDel
 
   useEffect(() => { box.current?.classList.toggle('placing', placing); }, [placing]);
 
-  // Switch between satellite, terrain and street maps.
+  // Switch between satellite, terrain and street maps. The new style goes on top and the old one stays underneath
+  // until the new pictures have arrived (6 seconds at most), so the map never sits blank while a slower map server
+  // answers. A refresh is never needed.
   useEffect(() => {
     const a = api.current; if (!a || a.style === mapStyle) return;
-    a.map.removeLayer(a.layers[a.style]); a.layers[mapStyle].addTo(a.map); a.style = mapStyle;
-    a.map.setMaxZoom(mapStyle === 'terrain' ? 17 : 18);
-    // Draw the new style straight away for the current view.
-    a.map.invalidateSize();
     const chosen = a.layers[mapStyle];
-    if (chosen instanceof a.L.LayerGroup) chosen.eachLayer(l => { if (l instanceof a.L.TileLayer) l.redraw(); });
-    else if (chosen instanceof a.L.TileLayer) chosen.redraw();
+    a.style = mapStyle;
+    a.map.setMaxZoom(mapStyle === 'terrain' ? 17 : 18);
+    const tiles: Leaflet.TileLayer[] = [];
+    if (chosen instanceof a.L.TileLayer) tiles.push(chosen);
+    else if (chosen instanceof a.L.LayerGroup) chosen.eachLayer(l => { if (l instanceof a.L.TileLayer) tiles.push(l); });
+    // Switching back before the old style left: it is still on the map and already drawn.
+    const already = a.map.hasLayer(chosen);
+    if (!already) chosen.addTo(a.map);
+    tiles.forEach(t => t.bringToFront());
+    a.map.invalidateSize();
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true; clearTimeout(timer);
+      for (const key of Object.keys(a.layers) as MapStyle[]) if (key !== a.style && a.map.hasLayer(a.layers[key])) a.map.removeLayer(a.layers[key]);
+    };
+    const timer = setTimeout(finish, 6000);
+    if (already) finish(); else tiles[0]?.once('load', finish);
+    return finish;
   }, [mapStyle]);
 
   return <>
